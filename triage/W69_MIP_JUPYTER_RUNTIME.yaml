@@ -1,0 +1,33 @@
+wave: W69
+program: MIP_JUPYTER_RUNTIME_PRODUCER
+repository: GBOGEB/codespaces-jupyter
+role: reproducible_notebook_runtime_producer
+modernize:
+  - replace blank exploratory codespace semantics with governed runtime identity
+  - inventory Python, notebook, package and environment surfaces
+  - emit exact-SHA environment and execution receipts
+innovate:
+  - make notebooks executable TRIAGE probes for thermodynamic, reliability and PCA calculations
+  - publish typed calculation outputs for CODEX semantic validation
+  - permit ABACUS to consume runtime timing, failure and reproducibility telemetry
+perpetuate:
+  - rerun a minimal notebook probe after dependency or environment change
+  - retain environment fingerprint, source SHA and output digest
+  - recurse on first non-reproducible cell or dependency failure
+outputs:
+  - runtime_inventory
+  - environment_fingerprint
+  - notebook_probe_receipt
+  - output_digest
+federation:
+  producer: codespaces-jupyter
+  semantic_consumer: CODEX
+  analytics_consumer: ABACUS
+  domain_consumer: cryoplant-project
+victory:
+  - one real notebook executes greater_than_0 cells
+  - clean rerun produces equivalent governed output
+  - exact-SHA receipt is consumable by CODEX
+claim_guards:
+  - NOTEBOOK_EXECUTION_NE_ENGINEERING_AUTHORITY
+  - RUNTIME_PASS_NE_DOMAIN_VALIDATION
