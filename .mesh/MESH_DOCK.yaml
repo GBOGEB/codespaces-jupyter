@@ -1,0 +1,15 @@
+schema: gbogeb-mesh-dock/1.0
+repo: GBOGEB/codespaces-jupyter
+node_id: repo.codespaces_jupyter
+ring: R1_ACTIVE_EXECUTION
+role: REPRODUCIBLE_NOTEBOOK_RUNTIME_PRODUCER
+local_ssot: {primary: level1/ssot.json, prior_control: triage/W69_MIP_JUPYTER_RUNTIME.yaml}
+global_directory: {repo: GBOGEB/CODEX, census: federation/mesh/GLOBAL_HIVE_CENSUS_v1.yaml, action_taxonomy: federation/mesh/GLOBAL_ACTION_TAXONOMY_v1.yaml}
+authority:
+  may: [execute_notebook_probes, fingerprint_environment, emit_deterministic_runtime_receipts]
+  must_not: [promote_notebook_execution_to_engineering_authority, promote_runtime_PASS_to_domain_validation, override_child_authority]
+inputs: [Python_environment, notebooks, package_state, measured_calculation_inputs]
+outputs: [runtime_inventory, environment_fingerprint, notebook_probe_receipt, output_digest]
+action_classes: [DR, FE, PB, RR, CR, BG]
+first_use_case: execute more than zero notebook cells twice and provide a reproducible calculation receipt to CODEX
+current_gap: exact-head >0-cell deterministic receipt still required after this SSOT/dock repair
