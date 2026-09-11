@@ -1,0 +1,17 @@
+{
+  "schema": "gbogeb-level1-ssot/v1",
+  "repo": "GBOGEB/codespaces-jupyter",
+  "role": "REPRODUCIBLE_NOTEBOOK_RUNTIME_PRODUCER",
+  "default_branch": "main",
+  "existing_runtime_refs": ["notebooks", "data", "requirements.txt", "triage/W69_MIP_JUPYTER_RUNTIME.yaml"],
+  "inputs": ["Python environment", "notebooks", "package state", "measured calculation inputs"],
+  "outputs": ["runtime inventory", "environment fingerprint", "notebook probe receipt", "output digest"],
+  "authority": {
+    "may": ["execute notebook probes", "fingerprint environments", "emit deterministic runtime receipts"],
+    "must_not": ["promote notebook execution to engineering authority", "promote runtime PASS to domain validation", "override child authority"]
+  },
+  "federation_targets": ["GBOGEB/pipeline-automation-hub", "GBOGEB/CODEX", "GBOGEB/ABACUS", "GBOGEB/cryoplant-project"],
+  "status": "W111_GLOBAL_REGISTRATION_CANDIDATE",
+  "promotion_requires": "one real notebook executes >0 cells twice with equivalent governed output and exact-SHA receipt",
+  "authority_transfer": false
+}
