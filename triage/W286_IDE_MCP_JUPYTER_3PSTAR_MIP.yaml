@@ -1,0 +1,47 @@
+schema: gbogeb.codespaces_jupyter.w286_3pstar_mip/v1
+as_of: "2026-09-18T17:00:00+02:00"
+mission: W286_GITHUB_FIRST_IDE_MCP_JUPYTER
+repository: GBOGEB/codespaces-jupyter
+base_sha: 1eba2240a86d1fd2bd6375e2fac481caf645cdde
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS
+    selected_first_red: STALE_LOCAL_ONLY_README_AND_NO_GUARDED_GITHUB_SYNC_OR_EXACT_DOUBLE_NOTEBOOK_PROBE
+  MIP:
+    modernize: PASS_GITHUB_FIRST_OPERATOR_SURFACE
+    innovate: PASS_DETERMINISTIC_DOUBLE_NOTEBOOK_RECEIPT
+    perpetuate: PASS_MAKEFILE_CI_HANDOVER_RECURSIVE_PATCH
+  3PC:
+    prepare: PASS_PR_CANDIDATE_MATERIALIZED
+    prove: PENDING_EXACT_HEAD_GITHUB_ACTION
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_3PC_PROVE_AND_COMMIT
+dmaic:
+  define: one GitHub-mediated workflow for Jupyter, Spyder, MCP and RHEL
+  measure:
+    - dirty_or_diverged_local_state
+    - exact_source_sha
+    - executed_code_cells_per_run
+    - output_digest_equivalence
+  analyze:
+    - README incorrectly states no GitHub repository exists
+    - no fail-closed local refresh command
+    - W69 exact-head greater-than-zero-cell recurrence remains the governing runtime gap
+  improve:
+    - guarded ff-only sync
+    - scoopo/coco Make targets
+    - deterministic notebook run twice
+    - human RYG receipt
+  control:
+    - pull_request runtime-probe workflow
+    - exact source SHA in generated receipt
+    - recursive handover and patch
+claim_guards:
+  - NOTEBOOK_EXECUTION_NE_ENGINEERING_AUTHORITY
+  - RUNTIME_PASS_NE_DOMAIN_VALIDATION
+  - MCP_MUTATION_NE_LOCAL_FILESYSTEM_SYNC
