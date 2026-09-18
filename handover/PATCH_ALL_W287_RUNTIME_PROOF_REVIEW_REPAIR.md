@@ -1,3 +1,82 @@
+# W287 recursive repair patch
+
+Base: `98fedcf1147e5bb53e5f833b8a1c5cebb6ded3f9`.
+
+----FILE: .gitignore
+notebooks/data
+notebooks/cifar_net.pth
+.ipynb_checkpoints/
+artifacts/runtime_probe/
+
+----END FILE: .gitignore
+
+----FILE: requirements.txt
+ipywidgets==8.1.2
+ipykernel>=6,<7
+nbclient>=0.10,<1
+nbformat>=5,<6
+matplotlib==3.8.4
+pandas==2.2.2
+torch==2.7.1
+torchvision==0.22.1
+tqdm==4.66.4
+
+----END FILE: requirements.txt
+
+----FILE: requirements-probe.txt
+ipykernel>=6,<7
+nbclient>=0.10,<1
+nbformat>=5,<6
+
+----END FILE: requirements-probe.txt
+
+----FILE: .github/workflows/runtime-probe.yml
+name: governed-runtime-probe
+
+on:
+  pull_request:
+    paths:
+      - "requirements.txt"
+      - "requirements-probe.txt"
+      - "requirements-ide.txt"
+      - "notebooks/**"
+      - "scripts/runtime_probe.py"
+      - "Makefile"
+      - ".github/workflows/runtime-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-probe.txt
+      - name: Install probe dependencies
+        run: python -m pip install -r requirements-probe.txt
+      - name: Execute notebook twice
+        run: python scripts/runtime_probe.py --notebook notebooks/runtime_probe.ipynb --output-dir artifacts/runtime_probe
+      - name: Upload exact-head runtime receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-runtime-probe-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/runtime_probe/
+          if-no-files-found: error
+
+----END FILE: .github/workflows/runtime-probe.yml
+
+----FILE: scripts/runtime_probe.py
 #!/usr/bin/env python3
 """Execute one notebook twice and emit an exact-source reproducibility receipt."""
 from __future__ import annotations
@@ -187,3 +266,85 @@ domain-validation authority.
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+----END FILE: scripts/runtime_probe.py
+
+----FILE: triage/W287_RUNTIME_PROOF_REVIEW_REPAIR_3PSTAR_MIP.yaml
+schema: gbogeb.codespaces_jupyter.w287_review_repair/v1
+as_of: "2026-09-18T19:07:00+02:00"
+mission: W287_RUNTIME_PROOF_REVIEW_REPAIR
+repository: GBOGEB/codespaces-jupyter
+parent_pr: 3
+parent_merge_sha: 98fedcf1147e5bb53e5f833b8a1c5cebb6ded3f9
+failed_run:
+  run_id: 35360464702
+  job_id: 105650169601
+  classification: APPLICATION_PREEXECUTION_DEPENDENCY_CONFLICT
+  first_red: TORCHVISION_0_21_0_REQUIRES_TORCH_2_6_0_BUT_TORCH_2_7_1_PINNED
+  runner_admitted: true
+  steps_executed: true
+  notebook_probe_reached: false
+codex_review_findings:
+  - P1_ALIGN_TORCH_TORCHVISION
+  - P2_REQUIRE_CLEAN_VALID_GIT_SOURCE
+  - P2_HASH_ALL_MIME_OUTPUTS
+  - P2_CHECKOUT_EXACT_PR_HEAD
+  - P2_IGNORE_GENERATED_PROBE_ARTIFACTS
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS
+    selected_first_red: DEPENDENCY_CONFLICT_AND_EXACT_SOURCE_REVIEW_GAPS
+  MIP:
+    modernize: PASS_LIGHTWEIGHT_PROBE_REQUIREMENTS
+    innovate: PASS_CLEAN_TREE_AND_ALL_MIME_CANONICALIZATION
+    perpetuate: PASS_EXACT_HEAD_CI_AND_IGNORED_GENERATED_RECEIPTS
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_FRESH_EXACT_HEAD_RUN
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_3PC_PROVE_AND_COMMIT
+repairs:
+  dependency_pair: torch==2.7.1 + torchvision==0.22.1
+  probe_dependencies: requirements-probe.txt
+  exact_head_checkout: "${{ github.event.pull_request.head.sha || github.sha }}"
+  source_clean_guard: git_status_porcelain_must_be_empty
+  output_digest: all_MIME_data_representations
+  generated_artifacts: ignored_at_artifacts/runtime_probe/
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+
+----END FILE: triage/W287_RUNTIME_PROOF_REVIEW_REPAIR_3PSTAR_MIP.yaml
+
+----FILE: handover/SC_2026-09-18_W287_RUNTIME_PROOF_REVIEW_REPAIR_v1.md
+# W287 lossless handover — runtime proof review repair
+
+The original W286 PR #3 merged at
+`98fedcf1147e5bb53e5f833b8a1c5cebb6ded3f9`, but its first runtime attempt
+`35360464702` obtained a real runner and failed before notebook execution
+because `torchvision==0.21.0` required `torch==2.6.0` while the repository
+pinned `torch==2.7.1`.
+
+Codex review also identified four proof-integrity gaps: local dirty trees could
+claim an old SHA, rich outputs only hashed `text/plain`, PR checkout used the
+synthetic merge ref, and generated probe artifacts dirtied the next local sync.
+
+W287 repairs all five items:
+
+1. aligns `torch==2.7.1` with `torchvision==0.22.1`;
+2. adds `requirements-probe.txt` so CI proof does not install unrelated heavy packages;
+3. rejects missing/dirty Git source before runtime proof;
+4. hashes all MIME representations in rich notebook output;
+5. checks out the exact PR head and ignores generated probe receipts locally.
+
+The next gate is one fresh exact-head GitHub Actions run with a real runner,
+more than zero executed code cells in both passes, equal all-MIME output digests,
+and an uploaded receipt bound to the candidate SHA.
+
+No engineering or domain-validation authority is transferred.
+
+----END FILE: handover/SC_2026-09-18_W287_RUNTIME_PROOF_REVIEW_REPAIR_v1.md
+
+----END OF PATCH ALL W287
