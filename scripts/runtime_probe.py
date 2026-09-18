@@ -8,6 +8,7 @@ import json
 import platform
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import nbformat
 from nbclient import NotebookClient
@@ -21,9 +22,40 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
-def git_head() -> str:
-    proc = subprocess.run(["git", "rev-parse", "HEAD"], text=True, capture_output=True)
-    return proc.stdout.strip() if proc.returncode == 0 else "UNKNOWN"
+def git_source_state() -> tuple[str, list[str]]:
+    head = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD"],
+        text=True,
+        capture_output=True,
+    )
+    if head.returncode != 0 or not head.stdout.strip():
+        raise RuntimeError("exact-source proof requires a valid Git commit")
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    dirty_entries = [line for line in status.stdout.splitlines() if line.strip()]
+    if dirty_entries:
+        raise RuntimeError(
+            "exact-source proof requires a clean Git tree; dirty entries: "
+            + "; ".join(dirty_entries)
+        )
+    return head.stdout.strip(), dirty_entries
+
+
+def normalize_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): normalize_json(value[k]) for k in sorted(value)}
+    if isinstance(value, (list, tuple)):
+        return [normalize_json(v) for v in value]
+    if isinstance(value, bytes):
+        return {"__bytes_sha256__": sha256_bytes(value)}
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return repr(value)
 
 
 def canonical_outputs(nb) -> list:
@@ -35,15 +67,27 @@ def canonical_outputs(nb) -> list:
         for output in cell.get("outputs", []):
             kind = output.get("output_type")
             if kind == "stream":
-                outputs.append({"type": kind, "name": output.get("name"), "text": output.get("text", "")})
+                outputs.append({
+                    "type": kind,
+                    "name": output.get("name"),
+                    "text": normalize_json(output.get("text", "")),
+                })
             elif kind in {"execute_result", "display_data"}:
-                outputs.append({"type": kind, "text/plain": output.get("data", {}).get("text/plain", "")})
+                outputs.append({
+                    "type": kind,
+                    "data": normalize_json(output.get("data", {})),
+                })
             elif kind == "error":
                 outputs.append({
                     "type": kind,
                     "ename": output.get("ename"),
                     "evalue": output.get("evalue"),
-                    "traceback": output.get("traceback", []),
+                    "traceback": normalize_json(output.get("traceback", [])),
+                })
+            else:
+                outputs.append({
+                    "type": kind,
+                    "payload": normalize_json(dict(output)),
                 })
         cells.append(outputs)
     return cells
@@ -79,20 +123,22 @@ def main() -> int:
     args = parser.parse_args()
 
     source = Path(args.notebook)
+    source_sha, dirty_entries = git_source_state()
+
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
     run1 = execute_once(source, out / "run1.executed.ipynb")
     run2 = execute_once(source, out / "run2.executed.ipynb")
-    source_sha = git_head()
     equivalent = run1["output_digest"] == run2["output_digest"]
     gt_zero = run1["executed_code_cells"] > 0 and run2["executed_code_cells"] > 0
     passed = equivalent and gt_zero
 
     receipt = {
-        "schema": "gbogeb.jupyter_runtime_probe_receipt/v1",
+        "schema": "gbogeb.jupyter_runtime_probe_receipt/v2",
         "repository": "GBOGEB/codespaces-jupyter",
         "source_sha": source_sha,
+        "source_tree_clean_before_execution": not dirty_entries,
         "source_notebook": str(source),
         "source_notebook_sha256": sha256_file(source),
         "environment_fingerprint": {
@@ -100,6 +146,7 @@ def main() -> int:
             "implementation": platform.python_implementation(),
             "platform": platform.platform(),
             "requirements_sha256": sha256_file(Path("requirements.txt")),
+            "probe_requirements_sha256": sha256_file(Path("requirements-probe.txt")),
         },
         "run1": run1,
         "run2": run2,
@@ -112,7 +159,10 @@ def main() -> int:
             "RUNTIME_PASS_NE_DOMAIN_VALIDATION",
         ],
     }
-    (out / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    (out / "receipt.json").write_text(
+        json.dumps(receipt, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     ryg = "GREEN" if passed else "RED"
     review = f"""# Jupyter runtime probe — human review
@@ -121,9 +171,10 @@ def main() -> int:
 |---|---|
 | Overall | {'🟢' if passed else '🔴'} {ryg} |
 | Source SHA | `{source_sha}` |
+| Source tree clean before run | YES |
 | Run 1 executed cells | {run1['executed_code_cells']} |
 | Run 2 executed cells | {run2['executed_code_cells']} |
-| Equivalent output digest | {'YES' if equivalent else 'NO'} |
+| Equivalent all-MIME output digest | {'YES' if equivalent else 'NO'} |
 | Output digest | `{run1['output_digest']}` |
 
 This is runtime/reproducibility evidence only. It does not confer engineering or
