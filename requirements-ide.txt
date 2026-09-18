@@ -1,0 +1,5 @@
+-r requirements.txt
+jupyterlab>=4,<5
+nbconvert>=7,<8
+spyder-kernels>=3,<4
+pythonnet>=3,<4; platform_system=="Windows"
