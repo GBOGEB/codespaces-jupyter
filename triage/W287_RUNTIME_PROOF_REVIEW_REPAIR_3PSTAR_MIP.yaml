@@ -1,0 +1,45 @@
+schema: gbogeb.codespaces_jupyter.w287_review_repair/v1
+as_of: "2026-09-18T19:07:00+02:00"
+mission: W287_RUNTIME_PROOF_REVIEW_REPAIR
+repository: GBOGEB/codespaces-jupyter
+parent_pr: 3
+parent_merge_sha: 98fedcf1147e5bb53e5f833b8a1c5cebb6ded3f9
+failed_run:
+  run_id: 35360464702
+  job_id: 105650169601
+  classification: APPLICATION_PREEXECUTION_DEPENDENCY_CONFLICT
+  first_red: TORCHVISION_0_21_0_REQUIRES_TORCH_2_6_0_BUT_TORCH_2_7_1_PINNED
+  runner_admitted: true
+  steps_executed: true
+  notebook_probe_reached: false
+codex_review_findings:
+  - P1_ALIGN_TORCH_TORCHVISION
+  - P2_REQUIRE_CLEAN_VALID_GIT_SOURCE
+  - P2_HASH_ALL_MIME_OUTPUTS
+  - P2_CHECKOUT_EXACT_PR_HEAD
+  - P2_IGNORE_GENERATED_PROBE_ARTIFACTS
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS
+    selected_first_red: DEPENDENCY_CONFLICT_AND_EXACT_SOURCE_REVIEW_GAPS
+  MIP:
+    modernize: PASS_LIGHTWEIGHT_PROBE_REQUIREMENTS
+    innovate: PASS_CLEAN_TREE_AND_ALL_MIME_CANONICALIZATION
+    perpetuate: PASS_EXACT_HEAD_CI_AND_IGNORED_GENERATED_RECEIPTS
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_FRESH_EXACT_HEAD_RUN
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_3PC_PROVE_AND_COMMIT
+repairs:
+  dependency_pair: torch==2.7.1 + torchvision==0.22.1
+  probe_dependencies: requirements-probe.txt
+  exact_head_checkout: "${{ github.event.pull_request.head.sha || github.sha }}"
+  source_clean_guard: git_status_porcelain_must_be_empty
+  output_digest: all_MIME_data_representations
+  generated_artifacts: ignored_at_artifacts/runtime_probe/
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
