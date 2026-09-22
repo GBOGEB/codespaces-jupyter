@@ -2,7 +2,7 @@
 
 Repository: GBOGEB/codespaces-jupyter
 
-Source authority remains in GBOGEB/cryoplant-project; this runtime repository
+Source authority remains in GBOGEB/cryoplant-project. This runtime repository
 contains only a bounded, source-bound calculation fixture.
 
 Read in order:
@@ -23,23 +23,43 @@ The exact v0.5 workbook binary is not present here. Therefore a green W288 run
 does not promote the expected v0.6 counts and does not satisfy the separate
 cryoplant exact-binary regeneration gate.
 
-A real candidate proof already passed on
-5b27886ad1630edaa18f4e8a24625291a23ff8b9 using workflow 35757514347.
-Both notebook passes executed 3 code cells and produced the same notebook output
-digest 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1.
-The workload receipt was
-PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION.
-The generated workbook semantic digest was
-fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
-and normalized CSV digest was
-78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a.
-Artifact 10708798126 had ZIP SHA-256
-c735f11f228b572df3db6b7fe3043cd69789a439d5c2297db2cd5abc16c1eaa9.
+## Review repair
 
-Because this handover and recursive patch are serialized after that run, obtain
-one final exact-head recertification after the serialization commit. Then require
-the same gates: more than zero cells on both runs, equal notebook output digests,
-the workload receipt PASS status, and uploaded evidence bound to the final
-candidate SHA.
+The final serialized pre-review head e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+passed workflow 35757662766 with 3 code cells in both runs and equal notebook
+output digest 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1.
+Its workload receipt also matched the expected v0.6 calculation.
+
+Codex then raised P1 review finding 4074272043: the receipt hard-coded
+no-authority and zero-credit values instead of validating them from the
+source-backed fixtures. That proof is therefore historical evidence, not the
+final 3PC proof.
+
+The repair now fails closed unless:
+- baseline authority_transfer is false;
+- baseline formal_credit_delta is zero and baseline status is PASS;
+- expected state is EXPECTED_NOT_YET_CREDITED;
+- expected authority_transfer is false;
+- formal, engineering, negotiation and compliance credit deltas are all zero;
+- the exact-v0.5 regeneration promotion gate remains the controlled
+  non-compensating statement.
+
+The receipt emits those authority and credit values from the validated source
+fixture, CI rechecks the guard result, and the notebook exposes guard validation
+before the calculation.
+
+## Exact next gate
+
+Obtain one fresh exact-head project-workload run after the repair and refreshed
+recursive patch. Require:
+- clean exact source SHA;
+- more than zero code cells on both runs;
+- equal complete notebook output digests;
+- guard_validation.all_non_compensating_guards_passed = true;
+- workload receipt PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION;
+- uploaded workbook, CSV and receipts bound to that exact candidate SHA;
+- clean final review / resolved material findings.
+
+Only then merge PR #5 and emit the MissionControl closure receipt.
 
 No authority transfer; all credit deltas remain zero.
