@@ -1,4 +1,4 @@
-# W289 recursive P1 authority-guard repair patch
+# W289 recursive P1/P2 authority-guard repair patch
 
 Base: d589aaad01ddbf37f8020a448cd847539583bb23
 
@@ -47,6 +47,10 @@ def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]
     return baseline, rows, expected
 
 
+def is_numeric_zero(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0
+
+
 def validate_authority_guards(
     baseline: dict[str, Any],
     expected: dict[str, Any],
@@ -59,8 +63,8 @@ def validate_authority_guards(
 
     if baseline.get("authority_transfer") is not False:
         failures.append("baseline authority_transfer must be false")
-    if baseline.get("formal_credit_delta") != 0:
-        failures.append("baseline formal_credit_delta must be zero")
+    if not is_numeric_zero(baseline.get("formal_credit_delta")):
+        failures.append("baseline formal_credit_delta must be numeric zero, not bool")
     if baseline.get("status") != "PASS":
         failures.append("baseline validation receipt status must be PASS")
 
@@ -74,8 +78,8 @@ def validate_authority_guards(
         "negotiation_credit_delta",
         "compliance_credit_delta",
     ):
-        if expected.get(key) != 0:
-            failures.append(f"{key} must be zero")
+        if not is_numeric_zero(expected.get(key)):
+            failures.append(f"{key} must be numeric zero, not bool")
     if expected.get("promotion_gate") != required_promotion_gate:
         failures.append("exact-v0.5 regeneration promotion gate changed or weakened")
 
@@ -411,7 +415,7 @@ jobs:
           assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
           assert data["authority_transfer"] is False
           for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
-              assert data[key] == 0
+              assert isinstance(data[key], (int, float)) and not isinstance(data[key], bool) and data[key] == 0
           print(json.dumps({
               "status": data["status"],
               "binding_rows": data["binding_rows"],
@@ -578,7 +582,7 @@ or promotion of the expected v0.6 counts.
 
 ----FILE: triage/W289_QPS_AUTHORITY_GUARD_P1_REPAIR.yaml
 schema: gbogeb.codespaces_jupyter.w289_qps_authority_guard_repair/v1
-as_of: "2026-09-22T19:06:00+02:00"
+as_of: "2026-09-22T19:13:00+02:00"
 mission: W289_QPS_REAL_WORKLOAD_NON_COMPENSATING_GUARD_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: d589aaad01ddbf37f8020a448cd847539583bb23
@@ -614,6 +618,15 @@ repair:
     - all four credit deltas must be zero
   notebook:
     - guard validation is executed and displayed before the calculation
+review_followup:
+  codex_finding_id: 4074342402
+  severity: P2
+  finding: REJECT_BOOLEAN_CREDIT_DELTAS_INSTEAD_OF_TREATING_THEM_AS_ZERO
+  repair:
+    - numeric-zero validation requires int or float, explicitly excludes bool, and value equals zero
+    - baseline formal credit uses strict numeric-zero validation
+    - all expected credit deltas use strict numeric-zero validation
+    - CI repeats the strict numeric-zero and non-bool assertion
 sequence:
   3PR:
     refresh: PASS
@@ -625,7 +638,7 @@ sequence:
     perpetuate: PASS_CI_ASSERTS_NON_COMPENSATING_GUARDS
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_EXACT_HEAD_POST_MERGE_REPAIR_PROOF
+    prove: PENDING_POST_P2_EXACT_HEAD_RECERTIFICATION
     commit: PENDING_REVIEW_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_REPAIR_PROVE_AND_COMMIT
 authority_transfer: false
@@ -670,6 +683,18 @@ W289 changes only the bounded proof/control layer:
 The QPS expected calculation remains unchanged. The exact source v0.5 workbook
 binary regeneration gate in GBOGEB/cryoplant-project remains separate and
 unsatisfied by this runtime proof.
+
+## P2 follow-up
+
+Codex review of exact head 01f864e2e9becaeb616706990c75010d96ae9c61
+raised P2 finding 4074342402: Python treats False == 0, so a JSON boolean could
+incorrectly satisfy a zero-credit check. The repair now defines numeric zero as
+an int or float that is not bool and equals zero. The baseline formal-credit
+field, all expected credit fields, and CI receipt verification use that strict
+check.
+
+The earlier exact-head proof remains historical evidence for the P1 repair, but
+3PC Prove is reset until the P2-repaired final head is recertified.
 
 ## Exact next gate
 
