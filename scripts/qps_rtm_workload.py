@@ -136,24 +136,58 @@ def write_workbook(
 
     base_ws = wb.create_sheet("BASELINE_V05")
     base_ws.append(["metric", "key", "value"])
-    base_ws.append(["scalar", "rtm_denominator", baseline["rtm_denominator"]])
-    base_ws.append(["scalar", "atomic_rows", baseline["atomic_rows"]])
-    for key, value in baseline["peer_queues"].items():
-        base_ws.append(["peer_queue", key, value])
-    for key, value in baseline["coverage_states"].items():
-        base_ws.append(["parent_screening", key, value])
+    base_rows = [
+        ("scalar", "rtm_denominator", baseline["rtm_denominator"]),
+        ("scalar", "atomic_rows", baseline["atomic_rows"]),
+        ("peer_queue", "ALAT_ONLY", baseline["peer_queues"]["ALAT_ONLY"]),
+        ("peer_queue", "BOTH_CHALLENGE_SAME_ATOM", baseline["peer_queues"]["BOTH_CHALLENGE_SAME_ATOM"]),
+        ("peer_queue", "LKT_ONLY", baseline["peer_queues"]["LKT_ONLY"]),
+        ("peer_queue", "PROTECTED_REMAINDER", baseline["peer_queues"]["PROTECTED_REMAINDER"]),
+        ("parent_screening", "ATOMIZED_SOURCE_BACKED", baseline["coverage_states"]["ATOMIZED_SOURCE_BACKED"]),
+        ("parent_screening", "LKT_SCOPE_INTERPRETATION_BOUND", baseline["coverage_states"]["LKT_SCOPE_INTERPRETATION_BOUND"]),
+        ("parent_screening", "LKT_SECTION_FAMILY_ALIGNMENT_PENDING", baseline["coverage_states"]["LKT_SECTION_FAMILY_ALIGNMENT_PENDING"]),
+        ("parent_screening", "SOURCE_EXTRACTION_REQUIRED", baseline["coverage_states"]["SOURCE_EXTRACTION_REQUIRED"]),
+    ]
+    for row in base_rows:
+        base_ws.append(list(row))
     style_header(base_ws)
 
     calc_ws = wb.create_sheet("CALCULATED_V06")
-    calc_ws.append(["metric", "key", "value"])
-    calc_ws.append(["scalar", "canonical_rtm_denominator", calculated["canonical_rtm_denominator"]])
-    calc_ws.append(["scalar", "atomic_rows", calculated["atomic_rows"]])
-    for key, value in calculated["peer_queues"].items():
-        calc_ws.append(["peer_queue", key, value])
-    for key, value in calculated["parent_screening"].items():
-        calc_ws.append(["parent_screening", key, value])
-    calc_ws.append(["scalar", "ranked_v05_family_frontier_remaining", calculated["ranked_v05_family_frontier_remaining"]])
+    calc_ws.append(["metric", "key", "formula", "expected"])
+    formula_rows = [
+        ("scalar", "canonical_rtm_denominator", "=BASELINE_V05!C2", expected["canonical_rtm_denominator"]),
+        ("scalar", "atomic_rows", "=BASELINE_V05!C3+COUNTA(BINDINGS!A2:A6)", expected["atomic_rows"]),
+        ("peer_queue", "ALAT_ONLY", '=BASELINE_V05!C4+COUNTIF(BINDINGS!H2:H6,"ALAT_ONLY")', expected["peer_queues"]["ALAT_ONLY"]),
+        ("peer_queue", "BOTH_CHALLENGE_SAME_ATOM", '=BASELINE_V05!C5+COUNTIF(BINDINGS!H2:H6,"BOTH_CHALLENGE_SAME_ATOM")', expected["peer_queues"]["BOTH_CHALLENGE_SAME_ATOM"]),
+        ("peer_queue", "LKT_ONLY", '=BASELINE_V05!C6+COUNTIF(BINDINGS!H2:H6,"LKT_ONLY")', expected["peer_queues"]["LKT_ONLY"]),
+        ("peer_queue", "PROTECTED_REMAINDER", "=BASELINE_V05!C7", expected["peer_queues"]["PROTECTED_REMAINDER"]),
+        ("parent_screening", "ATOMIZED_SOURCE_BACKED", "=BASELINE_V05!C8+COUNTA(BINDINGS!A2:A6)", expected["parent_screening"]["ATOMIZED_SOURCE_BACKED"]),
+        ("parent_screening", "LKT_SCOPE_INTERPRETATION_BOUND", "=BASELINE_V05!C9", expected["parent_screening"]["LKT_SCOPE_INTERPRETATION_BOUND"]),
+        ("parent_screening", "LKT_SECTION_FAMILY_ALIGNMENT_PENDING", "=BASELINE_V05!C10-COUNTA(BINDINGS!A2:A6)", expected["parent_screening"]["LKT_SECTION_FAMILY_ALIGNMENT_PENDING"]),
+        ("parent_screening", "SOURCE_EXTRACTION_REQUIRED", "=BASELINE_V05!C11", expected["parent_screening"]["SOURCE_EXTRACTION_REQUIRED"]),
+        ("scalar", "ranked_v05_family_frontier_remaining", "=0", expected["ranked_v05_family_frontier_remaining"]),
+    ]
+    for row in formula_rows:
+        calc_ws.append(list(row))
     style_header(calc_ws)
+    calc_ws.column_dimensions["B"].width = 42
+    calc_ws.column_dimensions["C"].width = 58
+
+    check_ws = wb.create_sheet("PYTHON_CHECK")
+    check_ws.append(["metric", "key", "calculated_value"])
+    check_ws.append(["scalar", "canonical_rtm_denominator", calculated["canonical_rtm_denominator"]])
+    check_ws.append(["scalar", "atomic_rows", calculated["atomic_rows"]])
+    for key in ("ALAT_ONLY", "BOTH_CHALLENGE_SAME_ATOM", "LKT_ONLY", "PROTECTED_REMAINDER"):
+        check_ws.append(["peer_queue", key, calculated["peer_queues"][key]])
+    for key in (
+        "ATOMIZED_SOURCE_BACKED",
+        "LKT_SCOPE_INTERPRETATION_BOUND",
+        "LKT_SECTION_FAMILY_ALIGNMENT_PENDING",
+        "SOURCE_EXTRACTION_REQUIRED",
+    ):
+        check_ws.append(["parent_screening", key, calculated["parent_screening"][key]])
+    check_ws.append(["scalar", "ranked_v05_family_frontier_remaining", calculated["ranked_v05_family_frontier_remaining"]])
+    style_header(check_ws)
 
     prov_ws = wb.create_sheet("PROVENANCE")
     prov_ws.append(["field", "value"])
