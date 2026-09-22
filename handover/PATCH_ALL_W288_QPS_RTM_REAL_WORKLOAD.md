@@ -14,6 +14,10 @@ on:
       - "scripts/runtime_probe.py"
       - "requirements-probe.txt"
       - "Makefile"
+      - "docs/QPS_RTM_REAL_WORKLOAD_PROOF.md"
+      - "triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml"
+      - "handover/SC_2026-09-22_W288_QPS_RTM_REAL_WORKLOAD_v1.md"
+      - "handover/PATCH_ALL_W288_QPS_RTM_REAL_WORKLOAD.md"
       - ".github/workflows/qps-project-workload.yml"
   workflow_dispatch:
 
@@ -665,7 +669,7 @@ compliance, or promotion of the expected v0.6 counts.
 
 ----FILE: triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml
 schema: gbogeb.codespaces_jupyter.w288_qps_real_workload/v1
-as_of: "2026-09-22T18:50:00+02:00"
+as_of: "2026-09-22T18:58:00+02:00"
 mission: W288_QPS_RTM_REAL_WORKLOAD_REPRODUCIBILITY
 repository: GBOGEB/codespaces-jupyter
 base_sha: 30e537298de8a25a78e162be590d1d5763641147
@@ -690,9 +694,22 @@ sequence:
     perpetuate: PASS_EXACT_HEAD_PROJECT_WORKLOAD_CI_HANDOVER
   3PC:
     prepare: PASS_CANDIDATE_MATERIALIZED
-    prove: PENDING_EXACT_HEAD_REAL_WORKLOAD_RUN
+    prove: PASS_ON_CANDIDATE_5B27886_REQUIRES_FINAL_SERIALIZED_HEAD_RECERTIFICATION
     commit: PENDING_REVIEW_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_3PC_PROVE_AND_COMMIT
+observed_candidate_proof:
+  candidate_sha: 5b27886ad1630edaa18f4e8a24625291a23ff8b9
+  workflow_run: 35757514347
+  job_id: 106846916831
+  result: SUCCESS
+  executed_code_cells_each_run: 3
+  notebook_output_digest: 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1
+  workload_status: PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION
+  excel_semantic_sha256: fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
+  normalized_csv_sha256: 78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a
+  artifact_id: 10708798126
+  artifact_zip_sha256: c735f11f228b572df3db6b7fe3043cd69789a439d5c2297db2cd5abc16c1eaa9
+  final_serialized_head_recertification: REQUIRED
 expected_project_workload:
   atomic_rows: 300
   peer_queues:
@@ -744,13 +761,24 @@ The exact v0.5 workbook binary is not present here. Therefore a green W288 run
 does not promote the expected v0.6 counts and does not satisfy the separate
 cryoplant exact-binary regeneration gate.
 
-3PR and MIP are materialized. 3PC Prepare is complete. Continue by obtaining one
-fresh exact-head run of the dedicated project-workload workflow. Require both
-notebook passes to execute more than zero code cells, equal complete notebook
-output digests, a workload receipt status of
-PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION, and uploaded artifacts
-bound to the exact candidate SHA. Then merge only if review is clean or all
-material findings are repaired.
+A real candidate proof already passed on
+5b27886ad1630edaa18f4e8a24625291a23ff8b9 using workflow 35757514347.
+Both notebook passes executed 3 code cells and produced the same notebook output
+digest 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1.
+The workload receipt was
+PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION.
+The generated workbook semantic digest was
+fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
+and normalized CSV digest was
+78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a.
+Artifact 10708798126 had ZIP SHA-256
+c735f11f228b572df3db6b7fe3043cd69789a439d5c2297db2cd5abc16c1eaa9.
+
+Because this handover and recursive patch are serialized after that run, obtain
+one final exact-head recertification after the serialization commit. Then require
+the same gates: more than zero cells on both runs, equal notebook output digests,
+the workload receipt PASS status, and uploaded evidence bound to the final
+candidate SHA.
 
 No authority transfer; all credit deltas remain zero.
 
