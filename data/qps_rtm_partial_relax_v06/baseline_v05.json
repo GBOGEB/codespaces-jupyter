@@ -1,0 +1,32 @@
+{
+  "source_repository": "GBOGEB/cryoplant-project",
+  "source_commit": "339a1682236d5dc0ccae5cf6d6df26d9f510d6b8",
+  "source_path": "controls/qps_partial_relaxation/QPS_PARTIAL_RELAX_V05_VALIDATION_RECEIPT_20260922.json",
+  "source_blob_sha": "7de067615cedd805207f480bdc018638c56180c4",
+  "atomic_rows": 295,
+  "authority_transfer": false,
+  "coverage_states": {
+    "ATOMIZED_SOURCE_BACKED": 88,
+    "LKT_SCOPE_INTERPRETATION_BOUND": 5,
+    "LKT_SECTION_FAMILY_ALIGNMENT_PENDING": 55,
+    "SOURCE_EXTRACTION_REQUIRED": 574
+  },
+  "formal_credit_delta": 0,
+  "peer_queues": {
+    "ALAT_ONLY": 80,
+    "BOTH_CHALLENGE_SAME_ATOM": 75,
+    "LKT_ONLY": 47,
+    "PROTECTED_REMAINDER": 93
+  },
+  "remaining_family_frontier": {
+    "TEC_ID_034": 11,
+    "TEC_ID_144": 34,
+    "TEC_ID_205": 10,
+    "TEC_ID_206": 10,
+    "TEC_ID_207": 10
+  },
+  "rtm_denominator": 722,
+  "sha256": "95c5129c217c73c6d93d604f1c012f0008f3029c60141ff9a651b6c74304243b",
+  "status": "PASS",
+  "workbook": "QPS_Cross_Bidder_Partial_Relaxation_Matrix_v0_5.xlsx"
+}
