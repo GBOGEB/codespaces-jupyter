@@ -52,11 +52,16 @@ jobs:
           assert data["status"] == "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION"
           assert data["binding_rows"] == 5
           assert data["calculation_matches_expected_control"] is True
+          assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
+          assert data["authority_transfer"] is False
+          for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
+              assert data[key] == 0
           print(json.dumps({
               "status": data["status"],
               "binding_rows": data["binding_rows"],
               "excel_semantic_sha256": data["excel_semantic_sha256"],
               "normalized_csv_sha256": data["normalized_csv_sha256"],
+              "non_compensating_guards": data["guard_validation"]["all_non_compensating_guards_passed"],
           }, sort_keys=True))
           PY
       - name: Upload exact-head project workload evidence
@@ -267,6 +272,55 @@ def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]
     return baseline, rows, expected
 
 
+def validate_authority_guards(
+    baseline: dict[str, Any],
+    expected: dict[str, Any],
+) -> dict[str, Any]:
+    required_promotion_gate = (
+        "exact source v0.5 binary must be regenerated and the emitted receipt must PASS "
+        "before these become the current workbook counts"
+    )
+    failures: list[str] = []
+
+    if baseline.get("authority_transfer") is not False:
+        failures.append("baseline authority_transfer must be false")
+    if baseline.get("formal_credit_delta") != 0:
+        failures.append("baseline formal_credit_delta must be zero")
+    if baseline.get("status") != "PASS":
+        failures.append("baseline validation receipt status must be PASS")
+
+    if expected.get("state") != "EXPECTED_NOT_YET_CREDITED":
+        failures.append("expected state must remain EXPECTED_NOT_YET_CREDITED")
+    if expected.get("authority_transfer") is not False:
+        failures.append("expected authority_transfer must be false")
+    for key in (
+        "formal_credit_delta",
+        "engineering_credit_delta",
+        "negotiation_credit_delta",
+        "compliance_credit_delta",
+    ):
+        if expected.get(key) != 0:
+            failures.append(f"{key} must be zero")
+    if expected.get("promotion_gate") != required_promotion_gate:
+        failures.append("exact-v0.5 regeneration promotion gate changed or weakened")
+
+    if failures:
+        raise ValueError("non-compensating authority guard failure: " + "; ".join(failures))
+
+    return {
+        "all_non_compensating_guards_passed": True,
+        "baseline_authority_transfer": baseline["authority_transfer"],
+        "baseline_formal_credit_delta": baseline["formal_credit_delta"],
+        "expected_state": expected["state"],
+        "expected_authority_transfer": expected["authority_transfer"],
+        "formal_credit_delta": expected["formal_credit_delta"],
+        "engineering_credit_delta": expected["engineering_credit_delta"],
+        "negotiation_credit_delta": expected["negotiation_credit_delta"],
+        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "promotion_gate": expected["promotion_gate"],
+    }
+
+
 def validate_bindings(rows: list[dict[str, str]]) -> None:
     if len(rows) != 5:
         raise ValueError(f"expected 5 exact bindings, got {len(rows)}")
@@ -471,6 +525,7 @@ def write_normalized_csv(rows: list[dict[str, str]], path: Path) -> None:
 
 def run() -> dict[str, Any]:
     baseline, rows, expected = load_inputs()
+    guard_validation = validate_authority_guards(baseline, expected)
     validate_bindings(rows)
     calculated = calculate(baseline, rows)
     assert_expected(calculated, expected)
@@ -501,16 +556,17 @@ def run() -> dict[str, Any]:
         "binding_rows": len(rows),
         "calculated": calculated,
         "expected_state": expected["state"],
+        "guard_validation": guard_validation,
         "calculation_matches_expected_control": True,
         "excel_semantic_sha256": semantic_digest,
         "excel_sheet_names": list(semantic),
         "normalized_csv_sha256": sha256_file(csv_path),
         "status": "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION",
-        "authority_transfer": False,
-        "formal_credit_delta": 0,
-        "engineering_credit_delta": 0,
-        "negotiation_credit_delta": 0,
-        "compliance_credit_delta": 0,
+        "authority_transfer": expected["authority_transfer"],
+        "formal_credit_delta": expected["formal_credit_delta"],
+        "engineering_credit_delta": expected["engineering_credit_delta"],
+        "negotiation_credit_delta": expected["negotiation_credit_delta"],
+        "compliance_credit_delta": expected["compliance_credit_delta"],
         "claim_guards": [
             "EXPECTED_V06_NE_PROMOTED_CURRENT_STATE",
             "WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION",
@@ -559,11 +615,12 @@ if __name__ == "__main__":
    "metadata": {},
    "outputs": [],
    "source": [
-    "from scripts.qps_rtm_workload import validate_bindings, calculate, assert_expected\n",
+    "from scripts.qps_rtm_workload import validate_authority_guards, validate_bindings, calculate, assert_expected\n",
+    "guard_validation = validate_authority_guards(baseline, expected)\n",
     "validate_bindings(bindings)\n",
     "calculated = calculate(baseline, bindings)\n",
     "assert_expected(calculated, expected)\n",
-    "print(calculated)"
+    "print({'guards': guard_validation, 'calculated': calculated})"
    ]
   },
   {
@@ -626,7 +683,8 @@ notebooks/qps_rtm_partial_relax_workload.ipynb:
 4. compares those counts to the source-backed expected control;
 5. writes a structured Excel workbook with formula-driven calculated cells;
 6. exports normalized CSV and reloads the workbook for a semantic digest;
-7. emits a workload receipt with explicit non-authority guards.
+7. validates non-compensating authority, zero-credit, expected-state and exact-v0.5 regeneration guards directly from the source-backed fixtures;
+8. emits a workload receipt only after those guards pass.
 
 The generic exact-head notebook harness then executes this notebook twice and
 requires the complete notebook output digest to match.
@@ -662,14 +720,16 @@ cryoplant control snapshot
 -> MissionControl receipt
 
 A green workload proof means the bounded calculation is reproducible at that
-source SHA. It is not engineering validation, contractual acceptance, bidder
-compliance, or promotion of the expected v0.6 counts.
+source SHA and the checked-in source fixtures still satisfy the explicit
+non-compensating no-authority / zero-credit / exact-v0.5-regeneration gates.
+It is not engineering validation, contractual acceptance, bidder compliance,
+or promotion of the expected v0.6 counts.
 
 ----END FILE: docs/QPS_RTM_REAL_WORKLOAD_PROOF.md
 
 ----FILE: triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml
 schema: gbogeb.codespaces_jupyter.w288_qps_real_workload/v1
-as_of: "2026-09-22T18:58:00+02:00"
+as_of: "2026-09-22T19:05:00+02:00"
 mission: W288_QPS_RTM_REAL_WORKLOAD_REPRODUCIBILITY
 repository: GBOGEB/codespaces-jupyter
 base_sha: 30e537298de8a25a78e162be590d1d5763641147
@@ -690,26 +750,42 @@ sequence:
     selected_first_red: SYNTHETIC_RUNTIME_PROOF_WITHOUT_REAL_QPS_WORKLOAD
   MIP:
     modernize: PASS_SOURCE_BACKED_QPS_FIXTURE_AND_EXCEL_ROUNDTRIP
-    innovate: PASS_SEMANTIC_WORKBOOK_DIGEST_AND_EXPECTED_COUNT_ASSERTIONS
+    innovate: PASS_SEMANTIC_WORKBOOK_DIGEST_EXPECTED_COUNT_AND_FAIL_CLOSED_AUTHORITY_GUARDS
     perpetuate: PASS_EXACT_HEAD_PROJECT_WORKLOAD_CI_HANDOVER
   3PC:
     prepare: PASS_CANDIDATE_MATERIALIZED
-    prove: PASS_ON_CANDIDATE_5B27886_REQUIRES_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+    prove: PENDING_POST_REVIEW_REPAIR_EXACT_HEAD_RECERTIFICATION
     commit: PENDING_REVIEW_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_3PC_PROVE_AND_COMMIT
-observed_candidate_proof:
-  candidate_sha: 5b27886ad1630edaa18f4e8a24625291a23ff8b9
-  workflow_run: 35757514347
-  job_id: 106846916831
-  result: SUCCESS
+review_repair:
+  codex_review_commit: e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+  finding_id: 4074272043
+  severity: P1
+  finding: VALIDATE_AUTHORITY_GUARDS_INSTEAD_OF_HARD_CODING
+  repair:
+    - baseline authority_transfer must be false
+    - baseline formal_credit_delta must be zero
+    - baseline validation status must be PASS
+    - expected state must remain EXPECTED_NOT_YET_CREDITED
+    - expected authority_transfer must be false
+    - all expected credit deltas must be zero
+    - exact v0.5 regeneration promotion gate must match the non-compensating controlled statement
+    - receipt authority and credit fields are emitted from the validated source fixture rather than hard-coded
+    - CI explicitly asserts non-compensating guard validation
+    - notebook exposes the guard validation result
+pre_repair_exact_head_evidence:
+  candidate_sha: e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+  workflow_run: 35757662766
+  job_id: 106847428414
+  result: SUCCESS_BUT_SUPERSEDED_BY_P1_REPAIR
   executed_code_cells_each_run: 3
   notebook_output_digest: 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1
   workload_status: PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION
   excel_semantic_sha256: fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
   normalized_csv_sha256: 78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a
-  artifact_id: 10708798126
-  artifact_zip_sha256: c735f11f228b572df3db6b7fe3043cd69789a439d5c2297db2cd5abc16c1eaa9
-  final_serialized_head_recertification: REQUIRED
+  artifact_id: 10708043513
+  artifact_zip_sha256: 928802074ade3716f36b3d1ebacc089670b0e6f75b7606c9f0e5cc1a18f47782
+  note: runtime evidence remains historical; it is not the final 3PC proof after the P1 repair
 expected_project_workload:
   atomic_rows: 300
   peer_queues:
@@ -740,7 +816,7 @@ claim_guards:
 
 Repository: GBOGEB/codespaces-jupyter
 
-Source authority remains in GBOGEB/cryoplant-project; this runtime repository
+Source authority remains in GBOGEB/cryoplant-project. This runtime repository
 contains only a bounded, source-bound calculation fixture.
 
 Read in order:
@@ -761,24 +837,44 @@ The exact v0.5 workbook binary is not present here. Therefore a green W288 run
 does not promote the expected v0.6 counts and does not satisfy the separate
 cryoplant exact-binary regeneration gate.
 
-A real candidate proof already passed on
-5b27886ad1630edaa18f4e8a24625291a23ff8b9 using workflow 35757514347.
-Both notebook passes executed 3 code cells and produced the same notebook output
-digest 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1.
-The workload receipt was
-PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION.
-The generated workbook semantic digest was
-fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
-and normalized CSV digest was
-78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a.
-Artifact 10708798126 had ZIP SHA-256
-c735f11f228b572df3db6b7fe3043cd69789a439d5c2297db2cd5abc16c1eaa9.
+## Review repair
 
-Because this handover and recursive patch are serialized after that run, obtain
-one final exact-head recertification after the serialization commit. Then require
-the same gates: more than zero cells on both runs, equal notebook output digests,
-the workload receipt PASS status, and uploaded evidence bound to the final
-candidate SHA.
+The final serialized pre-review head e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+passed workflow 35757662766 with 3 code cells in both runs and equal notebook
+output digest 8f6fd9a684e797fdecf402cf460cdf450734fbe443068e15a9049f821c04b8a1.
+Its workload receipt also matched the expected v0.6 calculation.
+
+Codex then raised P1 review finding 4074272043: the receipt hard-coded
+no-authority and zero-credit values instead of validating them from the
+source-backed fixtures. That proof is therefore historical evidence, not the
+final 3PC proof.
+
+The repair now fails closed unless:
+- baseline authority_transfer is false;
+- baseline formal_credit_delta is zero and baseline status is PASS;
+- expected state is EXPECTED_NOT_YET_CREDITED;
+- expected authority_transfer is false;
+- formal, engineering, negotiation and compliance credit deltas are all zero;
+- the exact-v0.5 regeneration promotion gate remains the controlled
+  non-compensating statement.
+
+The receipt emits those authority and credit values from the validated source
+fixture, CI rechecks the guard result, and the notebook exposes guard validation
+before the calculation.
+
+## Exact next gate
+
+Obtain one fresh exact-head project-workload run after the repair and refreshed
+recursive patch. Require:
+- clean exact source SHA;
+- more than zero code cells on both runs;
+- equal complete notebook output digests;
+- guard_validation.all_non_compensating_guards_passed = true;
+- workload receipt PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION;
+- uploaded workbook, CSV and receipts bound to that exact candidate SHA;
+- clean final review / resolved material findings.
+
+Only then merge PR #5 and emit the MissionControl closure receipt.
 
 No authority transfer; all credit deltas remain zero.
 
