@@ -42,6 +42,10 @@ def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]
     return baseline, rows, expected
 
 
+def is_numeric_zero(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0
+
+
 def validate_authority_guards(
     baseline: dict[str, Any],
     expected: dict[str, Any],
@@ -54,8 +58,8 @@ def validate_authority_guards(
 
     if baseline.get("authority_transfer") is not False:
         failures.append("baseline authority_transfer must be false")
-    if baseline.get("formal_credit_delta") != 0:
-        failures.append("baseline formal_credit_delta must be zero")
+    if not is_numeric_zero(baseline.get("formal_credit_delta")):
+        failures.append("baseline formal_credit_delta must be numeric zero, not bool")
     if baseline.get("status") != "PASS":
         failures.append("baseline validation receipt status must be PASS")
 
@@ -69,8 +73,8 @@ def validate_authority_guards(
         "negotiation_credit_delta",
         "compliance_credit_delta",
     ):
-        if expected.get(key) != 0:
-            failures.append(f"{key} must be zero")
+        if not is_numeric_zero(expected.get(key)):
+            failures.append(f"{key} must be numeric zero, not bool")
     if expected.get("promotion_gate") != required_promotion_gate:
         failures.append("exact-v0.5 regeneration promotion gate changed or weakened")
 
