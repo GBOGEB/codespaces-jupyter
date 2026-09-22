@@ -1,3 +1,8 @@
+# W289 recursive P1 authority-guard repair patch
+
+Base: d589aaad01ddbf37f8020a448cd847539583bb23
+
+----FILE: scripts/qps_rtm_workload.py
 #!/usr/bin/env python3
 """Bounded real QPS RTM workload: source-backed control snapshot -> Excel -> semantic receipt.
 
@@ -350,3 +355,336 @@ def run() -> dict[str, Any]:
 
 if __name__ == "__main__":
     print(json.dumps(run(), sort_keys=True))
+
+----END FILE: scripts/qps_rtm_workload.py
+
+----FILE: .github/workflows/qps-project-workload.yml
+name: qps-project-workload-proof
+
+on:
+  pull_request:
+    paths:
+      - "data/qps_rtm_partial_relax_v06/**"
+      - "notebooks/qps_rtm_partial_relax_workload.ipynb"
+      - "scripts/qps_rtm_workload.py"
+      - "scripts/runtime_probe.py"
+      - "requirements-probe.txt"
+      - "Makefile"
+      - "docs/QPS_RTM_REAL_WORKLOAD_PROOF.md"
+      - "triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml"
+      - "handover/SC_2026-09-22_W288_QPS_RTM_REAL_WORKLOAD_v1.md"
+      - "handover/PATCH_ALL_W288_QPS_RTM_REAL_WORKLOAD.md"
+      - ".github/workflows/qps-project-workload.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qps-rtm-workload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-probe.txt
+      - name: Install governed workload dependencies
+        run: python -m pip install -r requirements-probe.txt
+      - name: Execute real QPS notebook twice
+        run: python scripts/runtime_probe.py --notebook notebooks/qps_rtm_partial_relax_workload.ipynb --output-dir artifacts/qps_rtm_partial_relax_probe
+      - name: Verify workload receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("artifacts/qps_rtm_workload/workload_receipt.json")
+          data = json.loads(p.read_text())
+          assert data["status"] == "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION"
+          assert data["binding_rows"] == 5
+          assert data["calculation_matches_expected_control"] is True
+          assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
+          assert data["authority_transfer"] is False
+          for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
+              assert data[key] == 0
+          print(json.dumps({
+              "status": data["status"],
+              "binding_rows": data["binding_rows"],
+              "excel_semantic_sha256": data["excel_semantic_sha256"],
+              "normalized_csv_sha256": data["normalized_csv_sha256"],
+              "non_compensating_guards": data["guard_validation"]["all_non_compensating_guards_passed"],
+          }, sort_keys=True))
+          PY
+      - name: Upload exact-head project workload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qps-project-workload-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/qps_rtm_partial_relax_probe/
+            artifacts/qps_rtm_workload/
+          if-no-files-found: error
+
+----END FILE: .github/workflows/qps-project-workload.yml
+
+----FILE: notebooks/qps_rtm_partial_relax_workload.ipynb
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "intro",
+   "metadata": {},
+   "source": [
+    "# QPS RTM partial-relaxation workload proof\n",
+    "\n",
+    "This notebook executes a bounded real QPS workload using source-backed repository control snapshots from GBOGEB/cryoplant-project. It reproduces the expected v0.6 calculation and an Excel/CSV roundtrip. It does not regenerate the authoritative v0.5 workbook and therefore cannot promote expected counts or grant engineering/compliance/contract authority."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "load",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from scripts.qps_rtm_workload import load_inputs\n",
+    "baseline, bindings, expected = load_inputs()\n",
+    "print({'baseline_atomic_rows': baseline['atomic_rows'], 'binding_rows': len(bindings), 'expected_state': expected['state']})"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "calculate",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from scripts.qps_rtm_workload import validate_authority_guards, validate_bindings, calculate, assert_expected\n",
+    "guard_validation = validate_authority_guards(baseline, expected)\n",
+    "validate_bindings(bindings)\n",
+    "calculated = calculate(baseline, bindings)\n",
+    "assert_expected(calculated, expected)\n",
+    "print({'guards': guard_validation, 'calculated': calculated})"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "excel",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import json\n",
+    "from scripts.qps_rtm_workload import run\n",
+    "receipt = run()\n",
+    "print(json.dumps(receipt, sort_keys=True))"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python",
+   "version": "3.11"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
+
+----END FILE: notebooks/qps_rtm_partial_relax_workload.ipynb
+
+----FILE: docs/QPS_RTM_REAL_WORKLOAD_PROOF.md
+# QPS RTM real-workload reproducibility contract
+
+## Purpose
+
+This workload advances the Jupyter proof from a synthetic two-cell runtime test
+to a bounded project calculation tied to current QPS/RTM review control.
+
+The source snapshot is derived from:
+
+- GBOGEB/cryoplant-project at commit 339a1682236d5dc0ccae5cf6d6df26d9f510d6b8
+- controls/qps_partial_relaxation/QPS_PARTIAL_RELAX_V05_VALIDATION_RECEIPT_20260922.json
+  blob 7de067615cedd805207f480bdc018638c56180c4
+- controls/qps_partial_relaxation/QPS_PARTIAL_RELAX_V06_RECENSUS_CONTROL_20260922.yaml
+  blob 084f7f515cd5fd27e10bca820533c052a70dd48e
+
+The five exact bidder-native bindings are the currently controlled
+TEC_ID_034 / 205 / 206 / 207 / 144 set.
+
+## What the notebook does
+
+notebooks/qps_rtm_partial_relax_workload.ipynb:
+
+1. loads the v0.5 validation receipt snapshot and five exact bindings;
+2. validates uniqueness and exact target/queue binding;
+3. calculates the expected v0.6 review counts;
+4. compares those counts to the source-backed expected control;
+5. writes a structured Excel workbook with formula-driven calculated cells;
+6. exports normalized CSV and reloads the workbook for a semantic digest;
+7. validates non-compensating authority, zero-credit, expected-state and exact-v0.5 regeneration guards directly from the source-backed fixtures;
+8. emits a workload receipt only after those guards pass.
+
+The generic exact-head notebook harness then executes this notebook twice and
+requires the complete notebook output digest to match.
+
+## Expected calculation
+
+Starting from v0.5:
+
+- atomic rows: 295 -> 300
+- BOTH_CHALLENGE_SAME_ATOM: 75 -> 78
+- ALAT_ONLY: 80 -> 80
+- LKT_ONLY: 47 -> 49
+- PROTECTED_REMAINDER: 93 -> 93
+- ATOMIZED_SOURCE_BACKED: 88 -> 93
+- LKT_SECTION_FAMILY_ALIGNMENT_PENDING: 55 -> 50
+- LKT_SCOPE_INTERPRETATION_BOUND: 5 -> 5
+- SOURCE_EXTRACTION_REQUIRED: 574 -> 574
+
+These are reproduced expected values only. The cryoplant control explicitly
+keeps them uncredited until the exact v0.5 workbook binary is regenerated and
+its emitted receipt passes.
+
+## Contract
+
+cryoplant control snapshot
+-> checked-in bounded fixture
+-> exact Git SHA
+-> Jupyter notebook
+-> RTM calculation + Excel workbook + normalized CSV + semantic digest
+-> second independent notebook execution
+-> equal complete output digest plus more than zero executed cells
+-> human RYG and uploaded artifact receipt
+-> MissionControl receipt
+
+A green workload proof means the bounded calculation is reproducible at that
+source SHA and the checked-in source fixtures still satisfy the explicit
+non-compensating no-authority / zero-credit / exact-v0.5-regeneration gates.
+It is not engineering validation, contractual acceptance, bidder compliance,
+or promotion of the expected v0.6 counts.
+
+----END FILE: docs/QPS_RTM_REAL_WORKLOAD_PROOF.md
+
+----FILE: triage/W289_QPS_AUTHORITY_GUARD_P1_REPAIR.yaml
+schema: gbogeb.codespaces_jupyter.w289_qps_authority_guard_repair/v1
+as_of: "2026-09-22T19:06:00+02:00"
+mission: W289_QPS_REAL_WORKLOAD_NON_COMPENSATING_GUARD_REPAIR
+repository: GBOGEB/codespaces-jupyter
+base_main: d589aaad01ddbf37f8020a448cd847539583bb23
+origin:
+  merged_pr: 5
+  merged_w288_head: e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+  merged_commit: d589aaad01ddbf37f8020a448cd847539583bb23
+  codex_finding_id: 4074272043
+  severity: P1
+  finding: VALIDATE_AUTHORITY_GUARDS_INSTEAD_OF_HARD_CODING
+reason:
+  - W288 merged before the final Codex review completed
+  - final Codex review identified a material non-compensating authority-guard defect
+  - main therefore requires a bounded post-merge repair
+repair:
+  source_fixture_validation:
+    - baseline authority_transfer must be false
+    - baseline formal_credit_delta must be zero
+    - baseline status must be PASS
+    - expected state must be EXPECTED_NOT_YET_CREDITED
+    - expected authority_transfer must be false
+    - formal_credit_delta must be zero
+    - engineering_credit_delta must be zero
+    - negotiation_credit_delta must be zero
+    - compliance_credit_delta must be zero
+    - exact-v0.5 regeneration promotion gate must equal the controlled statement
+  receipt:
+    - authority and credit values are emitted from the validated expected fixture
+    - guard_validation is persisted in workload_receipt.json
+  ci:
+    - guard_validation.all_non_compensating_guards_passed must be true
+    - authority_transfer must be false
+    - all four credit deltas must be zero
+  notebook:
+    - guard validation is executed and displayed before the calculation
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS_P1_NON_COMPENSATING_GUARD_DEFECT
+  MIP:
+    modernize: PASS_SOURCE_GUARDS_FAIL_CLOSED
+    innovate: PASS_RECEIPT_SOURCE_DERIVED_AUTHORITY_STATE
+    perpetuate: PASS_CI_ASSERTS_NON_COMPENSATING_GUARDS
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_EXACT_HEAD_POST_MERGE_REPAIR_PROOF
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_REPAIR_PROVE_AND_COMMIT
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+negotiation_credit_delta: 0
+compliance_credit_delta: 0
+
+----END FILE: triage/W289_QPS_AUTHORITY_GUARD_P1_REPAIR.yaml
+
+----FILE: handover/SC_2026-09-22_W289_QPS_AUTHORITY_GUARD_P1_REPAIR_v1.md
+# W289 lossless handover - QPS authority-guard P1 repair
+
+Repository: GBOGEB/codespaces-jupyter
+
+## Why W289 exists
+
+W288 PR #5 merged at d589aaad01ddbf37f8020a448cd847539583bb23
+before its final requested Codex review completed. That review subsequently
+raised material P1 finding 4074272043 against merged code.
+
+The issue was not the reproduced QPS count calculation. The issue was that the
+workload receipt hard-coded no-authority / zero-credit values rather than
+rejecting source-backed fixtures that contradicted those guards. That could make
+the exact-v0.5 regeneration and zero-credit conditions compensating.
+
+## Repair
+
+W289 changes only the bounded proof/control layer:
+
+- validate baseline authority_transfer=false;
+- validate baseline formal_credit_delta=0 and baseline status=PASS;
+- validate expected state=EXPECTED_NOT_YET_CREDITED;
+- validate expected authority_transfer=false;
+- validate formal, engineering, negotiation and compliance credit deltas are 0;
+- require the controlled exact-v0.5 regeneration promotion gate verbatim;
+- emit authority and credit values from the validated fixture;
+- persist guard_validation in workload_receipt.json;
+- make CI assert guard_validation and all zero-credit/no-authority fields;
+- expose guard validation in the real QPS notebook before calculation.
+
+The QPS expected calculation remains unchanged. The exact source v0.5 workbook
+binary regeneration gate in GBOGEB/cryoplant-project remains separate and
+unsatisfied by this runtime proof.
+
+## Exact next gate
+
+Open the W289 repair PR, obtain exact-head qps-project-workload-proof and generic
+runtime proof, then request final review. Require the project workflow to show:
+more than zero executed notebook cells on both runs, equal notebook outputs,
+PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION, and
+guard_validation.all_non_compensating_guards_passed=true.
+
+Merge only after the material P1 is repaired and the exact-head proof is green.
+Then emit the MissionControl closure receipt.
+
+No authority transfer. All formal, engineering, negotiation and compliance
+credit deltas remain zero.
+
+----END FILE: handover/SC_2026-09-22_W289_QPS_AUTHORITY_GUARD_P1_REPAIR_v1.md
+
+----END OF PATCH ALL W289

@@ -26,7 +26,8 @@ notebooks/qps_rtm_partial_relax_workload.ipynb:
 4. compares those counts to the source-backed expected control;
 5. writes a structured Excel workbook with formula-driven calculated cells;
 6. exports normalized CSV and reloads the workbook for a semantic digest;
-7. emits a workload receipt with explicit non-authority guards.
+7. validates non-compensating authority, zero-credit, expected-state and exact-v0.5 regeneration guards directly from the source-backed fixtures;
+8. emits a workload receipt only after those guards pass.
 
 The generic exact-head notebook harness then executes this notebook twice and
 requires the complete notebook output digest to match.
@@ -62,5 +63,7 @@ cryoplant control snapshot
 -> MissionControl receipt
 
 A green workload proof means the bounded calculation is reproducible at that
-source SHA. It is not engineering validation, contractual acceptance, bidder
-compliance, or promotion of the expected v0.6 counts.
+source SHA and the checked-in source fixtures still satisfy the explicit
+non-compensating no-authority / zero-credit / exact-v0.5-regeneration gates.
+It is not engineering validation, contractual acceptance, bidder compliance,
+or promotion of the expected v0.6 counts.
