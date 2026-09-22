@@ -1,5 +1,5 @@
 schema: gbogeb.codespaces_jupyter.w289_qps_authority_guard_repair/v1
-as_of: "2026-09-22T19:06:00+02:00"
+as_of: "2026-09-22T19:13:00+02:00"
 mission: W289_QPS_REAL_WORKLOAD_NON_COMPENSATING_GUARD_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: d589aaad01ddbf37f8020a448cd847539583bb23
@@ -35,6 +35,15 @@ repair:
     - all four credit deltas must be zero
   notebook:
     - guard validation is executed and displayed before the calculation
+review_followup:
+  codex_finding_id: 4074342402
+  severity: P2
+  finding: REJECT_BOOLEAN_CREDIT_DELTAS_INSTEAD_OF_TREATING_THEM_AS_ZERO
+  repair:
+    - numeric-zero validation requires int or float, explicitly excludes bool, and value equals zero
+    - baseline formal credit uses strict numeric-zero validation
+    - all expected credit deltas use strict numeric-zero validation
+    - CI repeats the strict numeric-zero and non-bool assertion
 sequence:
   3PR:
     refresh: PASS
@@ -46,7 +55,7 @@ sequence:
     perpetuate: PASS_CI_ASSERTS_NON_COMPENSATING_GUARDS
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_EXACT_HEAD_POST_MERGE_REPAIR_PROOF
+    prove: PENDING_POST_P2_EXACT_HEAD_RECERTIFICATION
     commit: PENDING_REVIEW_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_REPAIR_PROVE_AND_COMMIT
 authority_transfer: false
