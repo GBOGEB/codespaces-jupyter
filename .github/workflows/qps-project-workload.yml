@@ -9,6 +9,10 @@ on:
       - "scripts/runtime_probe.py"
       - "requirements-probe.txt"
       - "Makefile"
+      - "docs/QPS_RTM_REAL_WORKLOAD_PROOF.md"
+      - "triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml"
+      - "handover/SC_2026-09-22_W288_QPS_RTM_REAL_WORKLOAD_v1.md"
+      - "handover/PATCH_ALL_W288_QPS_RTM_REAL_WORKLOAD.md"
       - ".github/workflows/qps-project-workload.yml"
   workflow_dispatch:
 
