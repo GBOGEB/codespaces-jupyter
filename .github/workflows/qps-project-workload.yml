@@ -50,7 +50,7 @@ jobs:
           assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
           assert data["authority_transfer"] is False
           for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
-              assert data[key] == 0
+              assert isinstance(data[key], (int, float)) and not isinstance(data[key], bool) and data[key] == 0
           print(json.dumps({
               "status": data["status"],
               "binding_rows": data["binding_rows"],
