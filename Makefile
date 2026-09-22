@@ -2,8 +2,10 @@ PYTHON ?= python
 ENV_NAME ?= gbogeb-jupyter
 PROBE_NOTEBOOK ?= notebooks/runtime_probe.ipynb
 PROBE_OUT ?= artifacts/runtime_probe
+QPS_WORKLOAD_NOTEBOOK ?= notebooks/qps_rtm_partial_relax_workload.ipynb
+QPS_WORKLOAD_PROBE_OUT ?= artifacts/qps_rtm_partial_relax_probe
 
-.PHONY: runtime scoopo coco sync doctor probe report jupyter smoke clean-probe
+.PHONY: runtime scoopo coco sync doctor probe report jupyter smoke qps-workload qps-workload-proof clean-probe clean-qps-workload
 
 runtime:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -25,6 +27,12 @@ doctor:
 probe:
 	$(PYTHON) scripts/runtime_probe.py --notebook $(PROBE_NOTEBOOK) --output-dir $(PROBE_OUT)
 
+qps-workload:
+	$(PYTHON) scripts/qps_rtm_workload.py
+
+qps-workload-proof:
+	$(PYTHON) scripts/runtime_probe.py --notebook $(QPS_WORKLOAD_NOTEBOOK) --output-dir $(QPS_WORKLOAD_PROBE_OUT)
+
 report: probe
 	@echo "Open $(PROBE_OUT)/HUMAN_REVIEW.md and $(PROBE_OUT)/receipt.json"
 
@@ -38,3 +46,6 @@ smoke:
 
 clean-probe:
 	$(PYTHON) -c "import shutil; shutil.rmtree('$(PROBE_OUT)', ignore_errors=True)"
+
+clean-qps-workload:
+	$(PYTHON) -c "import shutil; shutil.rmtree('artifacts/qps_rtm_workload', ignore_errors=True); shutil.rmtree('$(QPS_WORKLOAD_PROBE_OUT)', ignore_errors=True)"
