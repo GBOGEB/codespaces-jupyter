@@ -32,6 +32,18 @@ The QPS expected calculation remains unchanged. The exact source v0.5 workbook
 binary regeneration gate in GBOGEB/cryoplant-project remains separate and
 unsatisfied by this runtime proof.
 
+## P2 follow-up
+
+Codex review of exact head 01f864e2e9becaeb616706990c75010d96ae9c61
+raised P2 finding 4074342402: Python treats False == 0, so a JSON boolean could
+incorrectly satisfy a zero-credit check. The repair now defines numeric zero as
+an int or float that is not bool and equals zero. The baseline formal-credit
+field, all expected credit fields, and CI receipt verification use that strict
+check.
+
+The earlier exact-head proof remains historical evidence for the P1 repair, but
+3PC Prove is reset until the P2-repaired final head is recertified.
+
 ## Exact next gate
 
 Open the W289 repair PR, obtain exact-head qps-project-workload-proof and generic
