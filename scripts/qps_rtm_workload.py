@@ -42,6 +42,55 @@ def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]
     return baseline, rows, expected
 
 
+def validate_authority_guards(
+    baseline: dict[str, Any],
+    expected: dict[str, Any],
+) -> dict[str, Any]:
+    required_promotion_gate = (
+        "exact source v0.5 binary must be regenerated and the emitted receipt must PASS "
+        "before these become the current workbook counts"
+    )
+    failures: list[str] = []
+
+    if baseline.get("authority_transfer") is not False:
+        failures.append("baseline authority_transfer must be false")
+    if baseline.get("formal_credit_delta") != 0:
+        failures.append("baseline formal_credit_delta must be zero")
+    if baseline.get("status") != "PASS":
+        failures.append("baseline validation receipt status must be PASS")
+
+    if expected.get("state") != "EXPECTED_NOT_YET_CREDITED":
+        failures.append("expected state must remain EXPECTED_NOT_YET_CREDITED")
+    if expected.get("authority_transfer") is not False:
+        failures.append("expected authority_transfer must be false")
+    for key in (
+        "formal_credit_delta",
+        "engineering_credit_delta",
+        "negotiation_credit_delta",
+        "compliance_credit_delta",
+    ):
+        if expected.get(key) != 0:
+            failures.append(f"{key} must be zero")
+    if expected.get("promotion_gate") != required_promotion_gate:
+        failures.append("exact-v0.5 regeneration promotion gate changed or weakened")
+
+    if failures:
+        raise ValueError("non-compensating authority guard failure: " + "; ".join(failures))
+
+    return {
+        "all_non_compensating_guards_passed": True,
+        "baseline_authority_transfer": baseline["authority_transfer"],
+        "baseline_formal_credit_delta": baseline["formal_credit_delta"],
+        "expected_state": expected["state"],
+        "expected_authority_transfer": expected["authority_transfer"],
+        "formal_credit_delta": expected["formal_credit_delta"],
+        "engineering_credit_delta": expected["engineering_credit_delta"],
+        "negotiation_credit_delta": expected["negotiation_credit_delta"],
+        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "promotion_gate": expected["promotion_gate"],
+    }
+
+
 def validate_bindings(rows: list[dict[str, str]]) -> None:
     if len(rows) != 5:
         raise ValueError(f"expected 5 exact bindings, got {len(rows)}")
@@ -246,6 +295,7 @@ def write_normalized_csv(rows: list[dict[str, str]], path: Path) -> None:
 
 def run() -> dict[str, Any]:
     baseline, rows, expected = load_inputs()
+    guard_validation = validate_authority_guards(baseline, expected)
     validate_bindings(rows)
     calculated = calculate(baseline, rows)
     assert_expected(calculated, expected)
@@ -276,16 +326,17 @@ def run() -> dict[str, Any]:
         "binding_rows": len(rows),
         "calculated": calculated,
         "expected_state": expected["state"],
+        "guard_validation": guard_validation,
         "calculation_matches_expected_control": True,
         "excel_semantic_sha256": semantic_digest,
         "excel_sheet_names": list(semantic),
         "normalized_csv_sha256": sha256_file(csv_path),
         "status": "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION",
-        "authority_transfer": False,
-        "formal_credit_delta": 0,
-        "engineering_credit_delta": 0,
-        "negotiation_credit_delta": 0,
-        "compliance_credit_delta": 0,
+        "authority_transfer": expected["authority_transfer"],
+        "formal_credit_delta": expected["formal_credit_delta"],
+        "engineering_credit_delta": expected["engineering_credit_delta"],
+        "negotiation_credit_delta": expected["negotiation_credit_delta"],
+        "compliance_credit_delta": expected["compliance_credit_delta"],
         "claim_guards": [
             "EXPECTED_V06_NE_PROMOTED_CURRENT_STATE",
             "WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION",
