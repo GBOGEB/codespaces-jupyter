@@ -13,6 +13,9 @@ on:
       - "triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml"
       - "handover/SC_2026-09-22_W288_QPS_RTM_REAL_WORKLOAD_v1.md"
       - "handover/PATCH_ALL_W288_QPS_RTM_REAL_WORKLOAD.md"
+      - "triage/W289_QPS_AUTHORITY_GUARD_P1_REPAIR.yaml"
+      - "handover/SC_2026-09-22_W289_QPS_AUTHORITY_GUARD_P1_REPAIR_v1.md"
+      - "handover/PATCH_ALL_W289_QPS_AUTHORITY_GUARD_P1_REPAIR.md"
       - ".github/workflows/qps-project-workload.yml"
   workflow_dispatch:
 
