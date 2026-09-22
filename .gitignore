@@ -2,3 +2,5 @@ notebooks/data
 notebooks/cifar_net.pth
 .ipynb_checkpoints/
 artifacts/runtime_probe/
+artifacts/qps_rtm_workload/
+artifacts/qps_rtm_partial_relax_probe/
