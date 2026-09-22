@@ -47,11 +47,16 @@ jobs:
           assert data["status"] == "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION"
           assert data["binding_rows"] == 5
           assert data["calculation_matches_expected_control"] is True
+          assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
+          assert data["authority_transfer"] is False
+          for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
+              assert data[key] == 0
           print(json.dumps({
               "status": data["status"],
               "binding_rows": data["binding_rows"],
               "excel_semantic_sha256": data["excel_semantic_sha256"],
               "normalized_csv_sha256": data["normalized_csv_sha256"],
+              "non_compensating_guards": data["guard_validation"]["all_non_compensating_guards_passed"],
           }, sort_keys=True))
           PY
       - name: Upload exact-head project workload evidence
