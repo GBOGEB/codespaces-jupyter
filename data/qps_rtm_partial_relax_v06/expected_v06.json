@@ -1,0 +1,28 @@
+{
+  "source_repository": "GBOGEB/cryoplant-project",
+  "source_commit": "339a1682236d5dc0ccae5cf6d6df26d9f510d6b8",
+  "source_path": "controls/qps_partial_relaxation/QPS_PARTIAL_RELAX_V06_RECENSUS_CONTROL_20260922.yaml",
+  "source_blob_sha": "084f7f515cd5fd27e10bca820533c052a70dd48e",
+  "state": "EXPECTED_NOT_YET_CREDITED",
+  "canonical_rtm_denominator": 722,
+  "atomic_rows": 300,
+  "peer_queues": {
+    "BOTH_CHALLENGE_SAME_ATOM": 78,
+    "ALAT_ONLY": 80,
+    "LKT_ONLY": 49,
+    "PROTECTED_REMAINDER": 93
+  },
+  "parent_screening": {
+    "ATOMIZED_SOURCE_BACKED": 93,
+    "LKT_SECTION_FAMILY_ALIGNMENT_PENDING": 50,
+    "LKT_SCOPE_INTERPRETATION_BOUND": 5,
+    "SOURCE_EXTRACTION_REQUIRED": 574
+  },
+  "ranked_v05_family_frontier_remaining": 0,
+  "promotion_gate": "exact source v0.5 binary must be regenerated and the emitted receipt must PASS before these become the current workbook counts",
+  "authority_transfer": false,
+  "formal_credit_delta": 0,
+  "engineering_credit_delta": 0,
+  "negotiation_credit_delta": 0,
+  "compliance_credit_delta": 0
+}
