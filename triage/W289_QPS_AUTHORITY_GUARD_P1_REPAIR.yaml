@@ -1,0 +1,56 @@
+schema: gbogeb.codespaces_jupyter.w289_qps_authority_guard_repair/v1
+as_of: "2026-09-22T19:06:00+02:00"
+mission: W289_QPS_REAL_WORKLOAD_NON_COMPENSATING_GUARD_REPAIR
+repository: GBOGEB/codespaces-jupyter
+base_main: d589aaad01ddbf37f8020a448cd847539583bb23
+origin:
+  merged_pr: 5
+  merged_w288_head: e23965cd1ee9485eeff1168a2b3d98fb6c4b603f
+  merged_commit: d589aaad01ddbf37f8020a448cd847539583bb23
+  codex_finding_id: 4074272043
+  severity: P1
+  finding: VALIDATE_AUTHORITY_GUARDS_INSTEAD_OF_HARD_CODING
+reason:
+  - W288 merged before the final Codex review completed
+  - final Codex review identified a material non-compensating authority-guard defect
+  - main therefore requires a bounded post-merge repair
+repair:
+  source_fixture_validation:
+    - baseline authority_transfer must be false
+    - baseline formal_credit_delta must be zero
+    - baseline status must be PASS
+    - expected state must be EXPECTED_NOT_YET_CREDITED
+    - expected authority_transfer must be false
+    - formal_credit_delta must be zero
+    - engineering_credit_delta must be zero
+    - negotiation_credit_delta must be zero
+    - compliance_credit_delta must be zero
+    - exact-v0.5 regeneration promotion gate must equal the controlled statement
+  receipt:
+    - authority and credit values are emitted from the validated expected fixture
+    - guard_validation is persisted in workload_receipt.json
+  ci:
+    - guard_validation.all_non_compensating_guards_passed must be true
+    - authority_transfer must be false
+    - all four credit deltas must be zero
+  notebook:
+    - guard validation is executed and displayed before the calculation
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS_P1_NON_COMPENSATING_GUARD_DEFECT
+  MIP:
+    modernize: PASS_SOURCE_GUARDS_FAIL_CLOSED
+    innovate: PASS_RECEIPT_SOURCE_DERIVED_AUTHORITY_STATE
+    perpetuate: PASS_CI_ASSERTS_NON_COMPENSATING_GUARDS
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_EXACT_HEAD_POST_MERGE_REPAIR_PROOF
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_REPAIR_PROVE_AND_COMMIT
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+negotiation_credit_delta: 0
+compliance_credit_delta: 0
