@@ -5,13 +5,14 @@ from __future__ import annotations
 import copy
 import json
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.qps_rtm_workload import load_inputs, validate_authority_guards
+from scripts.qps_rtm_workload import load_inputs, loads_json_lossless, validate_authority_guards
 
 
 def must_reject(name: str, baseline: dict, expected: dict) -> str:
@@ -70,6 +71,16 @@ def main() -> int:
     e = copy.deepcopy(expected)
     e["promotion_gate"] = "workload proof may promote counts"
     rejected.append(must_reject("promotion_gate_weakened", copy.deepcopy(baseline), e))
+
+    tiny = loads_json_lossless('{"credit": 1e-400}')["credit"]
+    assert tiny == Decimal("1e-400")
+    e = copy.deepcopy(expected)
+    e["formal_credit_delta"] = tiny
+    rejected.append(must_reject("formal_credit_delta_tiny_decimal_nonzero", copy.deepcopy(baseline), e))
+
+    e = copy.deepcopy(expected)
+    e["formal_credit_delta"] = 0.0
+    rejected.append(must_reject("formal_credit_delta_untrusted_float_zero", copy.deepcopy(baseline), e))
 
     receipt = {
         "schema": "gbogeb.qps_guard_negative_probe/v1",
