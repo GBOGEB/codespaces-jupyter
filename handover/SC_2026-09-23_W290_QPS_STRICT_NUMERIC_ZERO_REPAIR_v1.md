@@ -99,6 +99,28 @@ artifact 10742360391 with ZIP SHA-256
 Because this handover and recursive patch are updated after that run, one final
 exact-head recertification is still required.
 
+## Accepted Decimal zero normalization follow-up
+
+Codex review of final head b4d9df3618ac4833b9c6ae6b863f03df490f1f8d
+raised P2 finding 4080944466: exact-zero JSON spellings such as 0.0 and 0e0 are
+parsed as Decimal and pass the exact-zero predicate, but copying those Decimal
+objects directly into the JSON receipt would make json.dumps fail.
+
+Commit 79995769cecb0f71016698a21175ddbf6cb922a8 canonicalizes every accepted
+credit zero to integer 0 before it enters guard_validation or the top-level
+receipt. Commit ad16863a045305d71b3fb58cb266b87c78867480 extends the negative
+probe to prove that Decimal zero spellings 0.0, 0e0, and -0.0 are accepted,
+canonicalized to int 0, and JSON-serializable while all unsafe mutations remain
+rejected.
+
+Run 35843383431 / job 107123565425 on ad16863a045305d71b3fb58cb266b87c78867480
+passed with 17 rejected unsafe mutations, 3+3 notebook cells, stable notebook
+output digest, unchanged workbook/CSV semantic digests, and artifact 10742481457
+with ZIP SHA-256 edd1baa889639f2e16ea632b41f31ba3487c3d528f506f43d3b078547f581ea4.
+
+This candidate proof precedes the refreshed governance surfaces, so a final
+exact-head recertification remains required.
+
 ## Exact next gate
 
 Obtain one final exact-head qps-project-workload-proof after this handover and
