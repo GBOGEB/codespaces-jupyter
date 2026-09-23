@@ -12,6 +12,7 @@ import csv
 import hashlib
 import json
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -34,16 +35,24 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
+def loads_json_lossless(text: str) -> dict[str, Any]:
+    return json.loads(text, parse_float=Decimal)
+
+
 def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]:
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
+    baseline = loads_json_lossless(BASELINE.read_text(encoding="utf-8"))
+    expected = loads_json_lossless(EXPECTED.read_text(encoding="utf-8"))
     with BINDINGS.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return baseline, rows, expected
 
 
 def is_numeric_zero(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0
+    if type(value) is int:
+        return value == 0
+    if isinstance(value, Decimal):
+        return value.is_finite() and value == Decimal(0)
+    return False
 
 
 def validate_authority_guards(
