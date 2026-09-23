@@ -1,0 +1,116 @@
+schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
+as_of: "2026-09-23T11:31:00+02:00"
+mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
+repository: GBOGEB/codespaces-jupyter
+base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
+origin:
+  merged_pr: 6
+  merged_commit: 3902e0edb18230e9236e48acfb36ce65b66732bc
+  codex_finding_id: 4074342402
+  severity: P2
+  finding: REJECT_BOOLEAN_CREDIT_DELTAS_INSTEAD_OF_TREATING_THEM_AS_ZERO
+reason:
+  - PR 6 merged before the post-review P2 repair commits were part of main
+  - Python bool is a subclass of int and False == 0
+  - zero-credit guards therefore require type-sensitive numeric-zero validation
+repair:
+  implementation:
+    - add is_numeric_zero(value)
+    - accept int or float zero only
+    - explicitly reject bool
+    - apply to baseline formal_credit_delta
+    - apply to all expected formal/engineering/negotiation/compliance credit deltas
+  negative_probe:
+    - mutate baseline authority transfer true
+    - mutate baseline formal credit to false and nonzero
+    - mutate baseline status to FAIL
+    - mutate expected state to PROMOTED
+    - mutate expected authority transfer true
+    - mutate each expected credit delta to false and nonzero
+    - weaken exact-v0.5 promotion gate
+    - require every mutation to be rejected
+  ci:
+    - run negative guard probe before notebook with PYTHONDONTWRITEBYTECODE=1
+    - require strict numeric-zero and non-bool receipt values
+    - preserve exact-head notebook repeat/digest and artifact receipt
+    - bind W290 handover filter to the committed 2026-09-23 path
+execution_history:
+  - sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+    run: 35841827953
+    result: FAIL
+    first_red: NEGATIVE_PROBE_IMPORT_PATH
+    repair: fc4bbd74127a013246a15fe819e1b04b70670222
+  - sha: fc4bbd74127a013246a15fe819e1b04b70670222
+    run: 35841901158
+    result: FAIL
+    first_red: NEGATIVE_PROBE_CREATED_PYCACHE_DIRTY_TREE
+    repair: 05ba30e279055e31483cc08c1b1f51e5136577ce
+  - sha: 05ba30e279055e31483cc08c1b1f51e5136577ce
+    run: 35842012607
+    job: 107119065381
+    result: PASS_CANDIDATE_PROOF
+    guard_negative_probe:
+      status: PASS_GUARDS_FAIL_CLOSED
+      rejected_mutation_count: 15
+    notebook:
+      executed_code_cells_each_run: 3
+      equal_output_digest: a1f2a771bf4dbaa69a133ef793fd15d8e4755c17fbd4cf5133066fe1479c6c2a
+    workload_receipt: PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION
+    excel_semantic_sha256: fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
+    normalized_csv_sha256: 78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a
+    artifact_id: 10740834822
+    artifact_zip_sha256: c63b80d0e203492133347be593613b11665b3716d64c6d6357134d2e6d961d84
+    note: HISTORICAL_CANDIDATE_PROOF_REQUIRES_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+review:
+  reviewed_sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+  findings:
+    - id: 4080848699
+      severity: P1
+      finding: MAKE_WORKLOAD_MODULE_IMPORTABLE_WHEN_RUNNING_PROBE
+      disposition: REPAIRED_BY_FC4BBD74127A013246A15FE819E1B04B70670222
+    - id: 4080848709
+      severity: P2
+      finding: MATCH_HANDOVER_FILTER_TO_COMMITTED_W290_FILENAME
+      disposition: REPAIRED_BY_35E3DBC592115AA2856B072329E19C52C395DD8A
+    - id: 4080883031
+      severity: P2
+      finding: PRESERVE_NONZERO_JSON_VALUES_BEFORE_CHECKING_ZERO
+      disposition: REPAIRED_BY_5843FBF8993EAA2D4E080EBC89FCDAB7D2F21B94_AND_10A481A94A53A9E585F31436683E224C18139244
+      repair:
+        - json floating tokens parsed with Decimal
+        - is_numeric_zero accepts only exact int zero or finite Decimal zero
+        - float values are rejected as untrusted for credit gates
+        - negative probe rejects Decimal 1e-400 and programmatic float 0.0
+    - id: 4080944466
+      severity: P2
+      finding: NORMALIZE_ACCEPTED_DECIMAL_ZEROS_BEFORE_SERIALIZING_RECEIPTS
+      disposition: REPAIRED_BY_79995769CECB0F71016698A21175DDBF6CB922A8_AND_AD16863A045305D71B3FB58CB266B87C78867480
+      repair:
+        - canonical_zero converts each accepted exact zero to canonical integer 0
+        - guard_validation serializes only canonical zero values
+        - top-level receipt credit fields are emitted from canonical validated guard values
+        - negative probe proves Decimal zero spellings 0.0, 0e0, and -0.0 serialize safely
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS_P2_TYPE_SAFETY_NON_COMPENSATING_GUARD
+  MIP:
+    modernize: PASS_STRICT_NUMERIC_ZERO_GUARD
+    innovate: PASS_NEGATIVE_MUTATION_PROOF
+    perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_POST_ZERO_NORMALIZATION_SERIALIZED_HEAD_RECERTIFICATION
+    commit: PENDING_FINAL_REVIEW_AND_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+negotiation_credit_delta: 0
+compliance_credit_delta: 0
+claim_guards:
+  - REAL_WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION
+  - EXPECTED_V06_NE_PROMOTED_CURRENT_STATE
+  - EXACT_V05_WORKBOOK_REGENERATION_REMAINS_SEPARATE
+  - BOOLEAN_FALSE_NE_NUMERIC_ZERO_FOR_CREDIT_GATES

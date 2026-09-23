@@ -6,6 +6,7 @@ on:
       - "data/qps_rtm_partial_relax_v06/**"
       - "notebooks/qps_rtm_partial_relax_workload.ipynb"
       - "scripts/qps_rtm_workload.py"
+      - "scripts/qps_guard_negative_probe.py"
       - "scripts/runtime_probe.py"
       - "requirements-probe.txt"
       - "Makefile"
@@ -13,6 +14,12 @@ on:
       - "triage/W288_QPS_RTM_REAL_WORKLOAD_3PSTAR_MIP.yaml"
       - "handover/SC_2026-09-22_W288_QPS_RTM_REAL_WORKLOAD_v1.md"
       - "handover/PATCH_ALL_W288_QPS_RTM_REAL_WORKLOAD.md"
+      - "triage/W289_QPS_AUTHORITY_GUARD_P1_REPAIR.yaml"
+      - "handover/SC_2026-09-22_W289_QPS_AUTHORITY_GUARD_P1_REPAIR_v1.md"
+      - "handover/PATCH_ALL_W289_QPS_AUTHORITY_GUARD_P1_REPAIR.md"
+      - "triage/W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.yaml"
+      - "handover/SC_2026-09-23_W290_QPS_STRICT_NUMERIC_ZERO_REPAIR_v1.md"
+      - "handover/PATCH_ALL_W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.md"
       - ".github/workflows/qps-project-workload.yml"
   workflow_dispatch:
 
@@ -35,6 +42,8 @@ jobs:
           cache-dependency-path: requirements-probe.txt
       - name: Install governed workload dependencies
         run: python -m pip install -r requirements-probe.txt
+      - name: Prove authority guards fail closed
+        run: PYTHONDONTWRITEBYTECODE=1 python scripts/qps_guard_negative_probe.py
       - name: Execute real QPS notebook twice
         run: python scripts/runtime_probe.py --notebook notebooks/qps_rtm_partial_relax_workload.ipynb --output-dir artifacts/qps_rtm_partial_relax_probe
       - name: Verify workload receipt
@@ -50,7 +59,7 @@ jobs:
           assert data["guard_validation"]["all_non_compensating_guards_passed"] is True
           assert data["authority_transfer"] is False
           for key in ("formal_credit_delta", "engineering_credit_delta", "negotiation_credit_delta", "compliance_credit_delta"):
-              assert data[key] == 0
+              assert isinstance(data[key], (int, float)) and not isinstance(data[key], bool) and data[key] == 0
           print(json.dumps({
               "status": data["status"],
               "binding_rows": data["binding_rows"],

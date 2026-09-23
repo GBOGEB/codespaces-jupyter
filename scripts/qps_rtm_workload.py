@@ -12,6 +12,7 @@ import csv
 import hashlib
 import json
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -34,12 +35,30 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
+def loads_json_lossless(text: str) -> dict[str, Any]:
+    return json.loads(text, parse_float=Decimal)
+
+
 def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]:
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
+    baseline = loads_json_lossless(BASELINE.read_text(encoding="utf-8"))
+    expected = loads_json_lossless(EXPECTED.read_text(encoding="utf-8"))
     with BINDINGS.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return baseline, rows, expected
+
+
+def is_numeric_zero(value: Any) -> bool:
+    if type(value) is int:
+        return value == 0
+    if isinstance(value, Decimal):
+        return value.is_finite() and value == Decimal(0)
+    return False
+
+
+def canonical_zero(value: Any, field: str) -> int:
+    if not is_numeric_zero(value):
+        raise ValueError(f"{field} must be exact numeric zero")
+    return 0
 
 
 def validate_authority_guards(
@@ -54,8 +73,8 @@ def validate_authority_guards(
 
     if baseline.get("authority_transfer") is not False:
         failures.append("baseline authority_transfer must be false")
-    if baseline.get("formal_credit_delta") != 0:
-        failures.append("baseline formal_credit_delta must be zero")
+    if not is_numeric_zero(baseline.get("formal_credit_delta")):
+        failures.append("baseline formal_credit_delta must be numeric zero, not bool")
     if baseline.get("status") != "PASS":
         failures.append("baseline validation receipt status must be PASS")
 
@@ -69,8 +88,8 @@ def validate_authority_guards(
         "negotiation_credit_delta",
         "compliance_credit_delta",
     ):
-        if expected.get(key) != 0:
-            failures.append(f"{key} must be zero")
+        if not is_numeric_zero(expected.get(key)):
+            failures.append(f"{key} must be numeric zero, not bool")
     if expected.get("promotion_gate") != required_promotion_gate:
         failures.append("exact-v0.5 regeneration promotion gate changed or weakened")
 
@@ -80,13 +99,23 @@ def validate_authority_guards(
     return {
         "all_non_compensating_guards_passed": True,
         "baseline_authority_transfer": baseline["authority_transfer"],
-        "baseline_formal_credit_delta": baseline["formal_credit_delta"],
+        "baseline_formal_credit_delta": canonical_zero(
+            baseline["formal_credit_delta"], "baseline formal_credit_delta"
+        ),
         "expected_state": expected["state"],
         "expected_authority_transfer": expected["authority_transfer"],
-        "formal_credit_delta": expected["formal_credit_delta"],
-        "engineering_credit_delta": expected["engineering_credit_delta"],
-        "negotiation_credit_delta": expected["negotiation_credit_delta"],
-        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "formal_credit_delta": canonical_zero(
+            expected["formal_credit_delta"], "formal_credit_delta"
+        ),
+        "engineering_credit_delta": canonical_zero(
+            expected["engineering_credit_delta"], "engineering_credit_delta"
+        ),
+        "negotiation_credit_delta": canonical_zero(
+            expected["negotiation_credit_delta"], "negotiation_credit_delta"
+        ),
+        "compliance_credit_delta": canonical_zero(
+            expected["compliance_credit_delta"], "compliance_credit_delta"
+        ),
         "promotion_gate": expected["promotion_gate"],
     }
 
@@ -332,11 +361,11 @@ def run() -> dict[str, Any]:
         "excel_sheet_names": list(semantic),
         "normalized_csv_sha256": sha256_file(csv_path),
         "status": "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION",
-        "authority_transfer": expected["authority_transfer"],
-        "formal_credit_delta": expected["formal_credit_delta"],
-        "engineering_credit_delta": expected["engineering_credit_delta"],
-        "negotiation_credit_delta": expected["negotiation_credit_delta"],
-        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "authority_transfer": guard_validation["expected_authority_transfer"],
+        "formal_credit_delta": guard_validation["formal_credit_delta"],
+        "engineering_credit_delta": guard_validation["engineering_credit_delta"],
+        "negotiation_credit_delta": guard_validation["negotiation_credit_delta"],
+        "compliance_credit_delta": guard_validation["compliance_credit_delta"],
         "claim_guards": [
             "EXPECTED_V06_NE_PROMOTED_CURRENT_STATE",
             "WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION",
