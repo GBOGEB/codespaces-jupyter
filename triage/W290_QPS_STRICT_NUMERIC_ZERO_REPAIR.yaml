@@ -1,0 +1,59 @@
+schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
+as_of: "2026-09-23T11:14:00+02:00"
+mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
+repository: GBOGEB/codespaces-jupyter
+base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
+origin:
+  merged_pr: 6
+  merged_commit: 3902e0edb18230e9236e48acfb36ce65b66732bc
+  codex_finding_id: 4074342402
+  severity: P2
+  finding: REJECT_BOOLEAN_CREDIT_DELTAS_INSTEAD_OF_TREATING_THEM_AS_ZERO
+reason:
+  - PR 6 merged before the post-review P2 repair commits were part of main
+  - Python bool is a subclass of int and False == 0
+  - zero-credit guards therefore require type-sensitive numeric-zero validation
+repair:
+  implementation:
+    - add is_numeric_zero(value)
+    - accept int or float zero only
+    - explicitly reject bool
+    - apply to baseline formal_credit_delta
+    - apply to all expected formal/engineering/negotiation/compliance credit deltas
+  negative_probe:
+    - mutate baseline authority transfer true
+    - mutate baseline formal credit to false and nonzero
+    - mutate baseline status to FAIL
+    - mutate expected state to PROMOTED
+    - mutate expected authority transfer true
+    - mutate each expected credit delta to false and nonzero
+    - weaken exact-v0.5 promotion gate
+    - require every mutation to be rejected
+  ci:
+    - run negative guard probe before notebook
+    - require strict numeric-zero and non-bool receipt values
+    - preserve exact-head notebook repeat/digest and artifact receipt
+sequence:
+  3PR:
+    refresh: PASS
+    probe: PASS
+    rank: PASS_P2_TYPE_SAFETY_NON_COMPENSATING_GUARD
+  MIP:
+    modernize: PASS_STRICT_NUMERIC_ZERO_GUARD
+    innovate: PASS_NEGATIVE_MUTATION_PROOF
+    perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
+  3PC:
+    prepare: PASS_REPAIR_BRANCH_MATERIALIZED
+    prove: PENDING_EXACT_HEAD_W290_PROOF
+    commit: PENDING_REVIEW_MERGE
+  3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
+authority_transfer: false
+formal_credit_delta: 0
+engineering_credit_delta: 0
+negotiation_credit_delta: 0
+compliance_credit_delta: 0
+claim_guards:
+  - REAL_WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION
+  - EXPECTED_V06_NE_PROMOTED_CURRENT_STATE
+  - EXACT_V05_WORKBOOK_REGENERATION_REMAINS_SEPARATE
+  - BOOLEAN_FALSE_NE_NUMERIC_ZERO_FOR_CREDIT_GATES
