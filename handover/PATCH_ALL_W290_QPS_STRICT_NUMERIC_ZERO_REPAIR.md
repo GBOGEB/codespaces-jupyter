@@ -369,6 +369,12 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.qps_rtm_workload import load_inputs, validate_authority_guards
 
@@ -469,7 +475,7 @@ on:
       - "handover/SC_2026-09-22_W289_QPS_AUTHORITY_GUARD_P1_REPAIR_v1.md"
       - "handover/PATCH_ALL_W289_QPS_AUTHORITY_GUARD_P1_REPAIR.md"
       - "triage/W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.yaml"
-      - "handover/SC_2026-09-22_W290_QPS_STRICT_NUMERIC_ZERO_REPAIR_v1.md"
+      - "handover/SC_2026-09-23_W290_QPS_STRICT_NUMERIC_ZERO_REPAIR_v1.md"
       - "handover/PATCH_ALL_W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.md"
       - ".github/workflows/qps-project-workload.yml"
   workflow_dispatch:
@@ -494,7 +500,7 @@ jobs:
       - name: Install governed workload dependencies
         run: python -m pip install -r requirements-probe.txt
       - name: Prove authority guards fail closed
-        run: python scripts/qps_guard_negative_probe.py
+        run: PYTHONDONTWRITEBYTECODE=1 python scripts/qps_guard_negative_probe.py
       - name: Execute real QPS notebook twice
         run: python scripts/runtime_probe.py --notebook notebooks/qps_rtm_partial_relax_workload.ipynb --output-dir artifacts/qps_rtm_partial_relax_probe
       - name: Verify workload receipt
@@ -533,7 +539,7 @@ jobs:
 
 ----FILE: triage/W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.yaml
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:14:00+02:00"
+as_of: "2026-09-23T11:18:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -564,9 +570,48 @@ repair:
     - weaken exact-v0.5 promotion gate
     - require every mutation to be rejected
   ci:
-    - run negative guard probe before notebook
+    - run negative guard probe before notebook with PYTHONDONTWRITEBYTECODE=1
     - require strict numeric-zero and non-bool receipt values
     - preserve exact-head notebook repeat/digest and artifact receipt
+    - bind W290 handover filter to the committed 2026-09-23 path
+execution_history:
+  - sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+    run: 35841827953
+    result: FAIL
+    first_red: NEGATIVE_PROBE_IMPORT_PATH
+    repair: fc4bbd74127a013246a15fe819e1b04b70670222
+  - sha: fc4bbd74127a013246a15fe819e1b04b70670222
+    run: 35841901158
+    result: FAIL
+    first_red: NEGATIVE_PROBE_CREATED_PYCACHE_DIRTY_TREE
+    repair: 05ba30e279055e31483cc08c1b1f51e5136577ce
+  - sha: 05ba30e279055e31483cc08c1b1f51e5136577ce
+    run: 35842012607
+    job: 107119065381
+    result: PASS_CANDIDATE_PROOF
+    guard_negative_probe:
+      status: PASS_GUARDS_FAIL_CLOSED
+      rejected_mutation_count: 15
+    notebook:
+      executed_code_cells_each_run: 3
+      equal_output_digest: a1f2a771bf4dbaa69a133ef793fd15d8e4755c17fbd4cf5133066fe1479c6c2a
+    workload_receipt: PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION
+    excel_semantic_sha256: fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
+    normalized_csv_sha256: 78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a
+    artifact_id: 10740834822
+    artifact_zip_sha256: c63b80d0e203492133347be593613b11665b3716d64c6d6357134d2e6d961d84
+    note: HISTORICAL_CANDIDATE_PROOF_REQUIRES_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+review:
+  reviewed_sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+  findings:
+    - id: 4080848699
+      severity: P1
+      finding: MAKE_WORKLOAD_MODULE_IMPORTABLE_WHEN_RUNNING_PROBE
+      disposition: REPAIRED_BY_FC4BBD74127A013246A15FE819E1B04B70670222
+    - id: 4080848709
+      severity: P2
+      finding: MATCH_HANDOVER_FILTER_TO_COMMITTED_W290_FILENAME
+      disposition: REPAIRED_BY_35E3DBC592115AA2856B072329E19C52C395DD8A
 sequence:
   3PR:
     refresh: PASS
@@ -578,8 +623,8 @@ sequence:
     perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_EXACT_HEAD_W290_PROOF
-    commit: PENDING_REVIEW_MERGE
+    prove: PENDING_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+    commit: PENDING_FINAL_REVIEW_AND_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
 authority_transfer: false
 formal_credit_delta: 0
@@ -598,6 +643,7 @@ claim_guards:
 # W290 lossless handover - strict numeric-zero post-merge repair
 
 Repository: GBOGEB/codespaces-jupyter
+PR: #7
 
 ## Context
 
@@ -617,24 +663,79 @@ The repair is deliberately narrow:
 - apply that rule to the baseline formal credit and every expected credit delta;
 - run a negative mutation probe that must reject unsafe authority, state,
   credit-type/value, and exact-v0.5 promotion-gate mutations;
+- keep that negative probe from writing bytecode before the exact-source check;
 - re-run the real QPS notebook twice through the governed runtime harness;
 - require equal notebook output digest, >0 executed code cells on each run,
   source-backed guard validation, Excel semantic digest, normalized CSV digest,
-  and exact-head artifacts.
+  and exact-head artifacts;
+- bind the workflow to the actual 2026-09-23 W290 handover filename.
 
 The QPS count calculation is unchanged. This does not regenerate the exact
 v0.5 workbook binary and cannot promote the expected v0.6 state.
 
+## Execution history
+
+The first PR-head run, 35841827953 at
+aafb70de3c1ee0c29fded66e73f8dc66bfa4c946, failed before mutation testing
+because direct script execution could not import scripts.qps_rtm_workload.
+Commit fc4bbd74127a013246a15fe819e1b04b70670222 made the probe import-safe.
+
+Run 35841901158 at that repaired head then passed the negative guard probe but
+failed the notebook exact-source precheck because importing the workload wrote
+scripts/__pycache__/qps_rtm_workload.cpython-311.pyc. Commit
+05ba30e279055e31483cc08c1b1f51e5136577ce runs the negative probe with
+PYTHONDONTWRITEBYTECODE=1.
+
+Run 35842012607 / job 107119065381 at
+05ba30e279055e31483cc08c1b1f51e5136577ce passed:
+
+- negative guard probe: PASS_GUARDS_FAIL_CLOSED;
+- rejected unsafe mutations: 15;
+- notebook executed code cells: 3 and 3;
+- equal notebook output digest:
+  a1f2a771bf4dbaa69a133ef793fd15d8e4755c17fbd4cf5133066fe1479c6c2a;
+- workload receipt:
+  PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION;
+- Excel semantic SHA-256:
+  fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc;
+- normalized CSV SHA-256:
+  78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a;
+- artifact ID 10740834822;
+- artifact ZIP SHA-256:
+  c63b80d0e203492133347be593613b11665b3716d64c6d6357134d2e6d961d84.
+
+This proof is candidate evidence only because governance serialization and a
+review repair followed it.
+
+## Review disposition
+
+Codex review of aafb70de3c raised two material findings.
+
+P1 4080848699, direct-execution import failure, is repaired by
+fc4bbd74127a013246a15fe819e1b04b70670222 and demonstrated repaired by the
+subsequent successful negative probe.
+
+P2 4080848709, the workflow referenced a 2026-09-22 W290 handover path while
+the committed file is dated 2026-09-23, is repaired by
+35e3dbc592115aa2856b072329e19c52c395dd8a.
+
 ## Exact next gate
 
-1. Open W290 PR from w290/qps-strict-numeric-zero-postmerge-repair.
-2. Require qps-project-workload-proof and governed-runtime-probe to pass on the
-   exact PR head.
-3. Confirm the negative probe reports PASS_GUARDS_FAIL_CLOSED and rejects every
-   listed mutation.
-4. Request/await final Codex review and repair only material findings.
-5. Merge only after exact-head proof and review are clean.
-6. Verify merged main and record the MissionControl closure receipt.
+Obtain one final exact-head qps-project-workload-proof after this handover and
+the recursive patch are refreshed. Then request/await Codex review of that exact
+final head. Require:
+
+- exact candidate SHA checkout and clean source tree;
+- PASS_GUARDS_FAIL_CLOSED with all 15 mutations rejected;
+- >0 notebook code cells on both runs;
+- equal complete notebook output digest;
+- source-backed non-compensating guard validation;
+- PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION;
+- uploaded Excel/CSV/receipt artifacts bound to the exact final SHA;
+- no unresolved material review findings.
+
+Only then merge PR #7, verify merged main, and record the MissionControl closure
+receipt.
 
 No authority transfer. Formal, engineering, negotiation, and compliance credit
 deltas remain numeric zero.
