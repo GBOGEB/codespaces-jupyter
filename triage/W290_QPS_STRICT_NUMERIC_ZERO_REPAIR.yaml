@@ -1,5 +1,5 @@
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:24:00+02:00"
+as_of: "2026-09-23T11:31:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -81,6 +81,15 @@ review:
         - is_numeric_zero accepts only exact int zero or finite Decimal zero
         - float values are rejected as untrusted for credit gates
         - negative probe rejects Decimal 1e-400 and programmatic float 0.0
+    - id: 4080944466
+      severity: P2
+      finding: NORMALIZE_ACCEPTED_DECIMAL_ZEROS_BEFORE_SERIALIZING_RECEIPTS
+      disposition: REPAIRED_BY_79995769CECB0F71016698A21175DDBF6CB922A8_AND_AD16863A045305D71B3FB58CB266B87C78867480
+      repair:
+        - canonical_zero converts each accepted exact zero to canonical integer 0
+        - guard_validation serializes only canonical zero values
+        - top-level receipt credit fields are emitted from canonical validated guard values
+        - negative probe proves Decimal zero spellings 0.0, 0e0, and -0.0 serialize safely
 sequence:
   3PR:
     refresh: PASS
@@ -92,7 +101,7 @@ sequence:
     perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+    prove: PENDING_POST_ZERO_NORMALIZATION_SERIALIZED_HEAD_RECERTIFICATION
     commit: PENDING_FINAL_REVIEW_AND_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
 authority_transfer: false
