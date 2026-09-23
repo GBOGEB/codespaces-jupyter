@@ -60,6 +60,12 @@ def is_numeric_zero(value: Any) -> bool:
     return False
 
 
+def canonical_zero(value: Any, field: str) -> int:
+    if not is_numeric_zero(value):
+        raise ValueError(f"{field} must be exact numeric zero")
+    return 0
+
+
 def validate_authority_guards(
     baseline: dict[str, Any],
     expected: dict[str, Any],
@@ -98,13 +104,23 @@ def validate_authority_guards(
     return {
         "all_non_compensating_guards_passed": True,
         "baseline_authority_transfer": baseline["authority_transfer"],
-        "baseline_formal_credit_delta": baseline["formal_credit_delta"],
+        "baseline_formal_credit_delta": canonical_zero(
+            baseline["formal_credit_delta"], "baseline formal_credit_delta"
+        ),
         "expected_state": expected["state"],
         "expected_authority_transfer": expected["authority_transfer"],
-        "formal_credit_delta": expected["formal_credit_delta"],
-        "engineering_credit_delta": expected["engineering_credit_delta"],
-        "negotiation_credit_delta": expected["negotiation_credit_delta"],
-        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "formal_credit_delta": canonical_zero(
+            expected["formal_credit_delta"], "formal_credit_delta"
+        ),
+        "engineering_credit_delta": canonical_zero(
+            expected["engineering_credit_delta"], "engineering_credit_delta"
+        ),
+        "negotiation_credit_delta": canonical_zero(
+            expected["negotiation_credit_delta"], "negotiation_credit_delta"
+        ),
+        "compliance_credit_delta": canonical_zero(
+            expected["compliance_credit_delta"], "compliance_credit_delta"
+        ),
         "promotion_gate": expected["promotion_gate"],
     }
 
@@ -350,11 +366,11 @@ def run() -> dict[str, Any]:
         "excel_sheet_names": list(semantic),
         "normalized_csv_sha256": sha256_file(csv_path),
         "status": "PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION",
-        "authority_transfer": expected["authority_transfer"],
-        "formal_credit_delta": expected["formal_credit_delta"],
-        "engineering_credit_delta": expected["engineering_credit_delta"],
-        "negotiation_credit_delta": expected["negotiation_credit_delta"],
-        "compliance_credit_delta": expected["compliance_credit_delta"],
+        "authority_transfer": guard_validation["expected_authority_transfer"],
+        "formal_credit_delta": guard_validation["formal_credit_delta"],
+        "engineering_credit_delta": guard_validation["engineering_credit_delta"],
+        "negotiation_credit_delta": guard_validation["negotiation_credit_delta"],
+        "compliance_credit_delta": guard_validation["compliance_credit_delta"],
         "claim_guards": [
             "EXPECTED_V06_NE_PROMOTED_CURRENT_STATE",
             "WORKLOAD_REPRODUCIBILITY_NE_ENGINEERING_VALIDATION",
@@ -455,6 +471,16 @@ def main() -> int:
     e = copy.deepcopy(expected)
     e["formal_credit_delta"] = 0.0
     rejected.append(must_reject("formal_credit_delta_untrusted_float_zero", copy.deepcopy(baseline), e))
+
+    for token in ("0.0", "0e0", "-0.0"):
+        exact_zero = loads_json_lossless(f'{{"credit": {token}}}')["credit"]
+        assert isinstance(exact_zero, Decimal)
+        e = copy.deepcopy(expected)
+        e["formal_credit_delta"] = exact_zero
+        guard = validate_authority_guards(copy.deepcopy(baseline), e)
+        assert type(guard["formal_credit_delta"]) is int
+        assert guard["formal_credit_delta"] == 0
+        json.dumps(guard)
 
     receipt = {
         "schema": "gbogeb.qps_guard_negative_probe/v1",
@@ -559,7 +585,7 @@ jobs:
 
 ----FILE: triage/W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.yaml
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:24:00+02:00"
+as_of: "2026-09-23T11:31:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -641,6 +667,15 @@ review:
         - is_numeric_zero accepts only exact int zero or finite Decimal zero
         - float values are rejected as untrusted for credit gates
         - negative probe rejects Decimal 1e-400 and programmatic float 0.0
+    - id: 4080944466
+      severity: P2
+      finding: NORMALIZE_ACCEPTED_DECIMAL_ZEROS_BEFORE_SERIALIZING_RECEIPTS
+      disposition: REPAIRED_BY_79995769CECB0F71016698A21175DDBF6CB922A8_AND_AD16863A045305D71B3FB58CB266B87C78867480
+      repair:
+        - canonical_zero converts each accepted exact zero to canonical integer 0
+        - guard_validation serializes only canonical zero values
+        - top-level receipt credit fields are emitted from canonical validated guard values
+        - negative probe proves Decimal zero spellings 0.0, 0e0, and -0.0 serialize safely
 sequence:
   3PR:
     refresh: PASS
@@ -652,7 +687,7 @@ sequence:
     perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+    prove: PENDING_POST_ZERO_NORMALIZATION_SERIALIZED_HEAD_RECERTIFICATION
     commit: PENDING_FINAL_REVIEW_AND_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
 authority_transfer: false
@@ -769,6 +804,28 @@ artifact 10742360391 with ZIP SHA-256
 
 Because this handover and recursive patch are updated after that run, one final
 exact-head recertification is still required.
+
+## Accepted Decimal zero normalization follow-up
+
+Codex review of final head b4d9df3618ac4833b9c6ae6b863f03df490f1f8d
+raised P2 finding 4080944466: exact-zero JSON spellings such as 0.0 and 0e0 are
+parsed as Decimal and pass the exact-zero predicate, but copying those Decimal
+objects directly into the JSON receipt would make json.dumps fail.
+
+Commit 79995769cecb0f71016698a21175ddbf6cb922a8 canonicalizes every accepted
+credit zero to integer 0 before it enters guard_validation or the top-level
+receipt. Commit ad16863a045305d71b3fb58cb266b87c78867480 extends the negative
+probe to prove that Decimal zero spellings 0.0, 0e0, and -0.0 are accepted,
+canonicalized to int 0, and JSON-serializable while all unsafe mutations remain
+rejected.
+
+Run 35843383431 / job 107123565425 on ad16863a045305d71b3fb58cb266b87c78867480
+passed with 17 rejected unsafe mutations, 3+3 notebook cells, stable notebook
+output digest, unchanged workbook/CSV semantic digests, and artifact 10742481457
+with ZIP SHA-256 edd1baa889639f2e16ea632b41f31ba3487c3d528f506f43d3b078547f581ea4.
+
+This candidate proof precedes the refreshed governance surfaces, so a final
+exact-head recertification remains required.
 
 ## Exact next gate
 
