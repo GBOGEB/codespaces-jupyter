@@ -77,6 +77,28 @@ P2 4080848709, the workflow referenced a 2026-09-22 W290 handover path while
 the committed file is dated 2026-09-23, is repaired by
 35e3dbc592115aa2856b072329e19c52c395dd8a.
 
+## Decimal underflow follow-up
+
+Final review of serialized head 67c36db447c4405c8afd0712fbb11222fcac07f5
+raised P2 finding 4080883031: ordinary json.loads can underflow a tiny nonzero
+token such as 1e-400 to 0.0 before the zero-credit predicate sees it.
+
+Commit 5843fbf8993eaa2d4e080ebc89fcdab7d2f21b94 now parses JSON floating
+tokens with Decimal and accepts credit zero only when the value is exact int 0
+or a finite Decimal equal to zero. Programmatic float values are deliberately
+not trusted for the credit gate. Commit
+10a481a94a53a9e585f31436683e224c18139244 extends the negative probe to
+reject both Decimal("1e-400") and an untrusted float 0.0.
+
+Run 35842664433 / job 107121212081 on 10a481a94a53a9e585f31436683e224c18139244
+passed with 17 rejected unsafe mutations, 3+3 executed notebook cells, the same
+stable notebook output digest, unchanged workbook/CSV semantic digests, and
+artifact 10742360391 with ZIP SHA-256
+6218cc54386c2dc42a73cd0ff67d51d2aadb501beec9108671dc8462e7774d2e.
+
+Because this handover and recursive patch are updated after that run, one final
+exact-head recertification is still required.
+
 ## Exact next gate
 
 Obtain one final exact-head qps-project-workload-proof after this handover and
