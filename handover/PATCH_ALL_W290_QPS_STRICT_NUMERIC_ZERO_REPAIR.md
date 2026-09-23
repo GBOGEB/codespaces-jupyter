@@ -17,6 +17,7 @@ import csv
 import hashlib
 import json
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -39,16 +40,24 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
+def loads_json_lossless(text: str) -> dict[str, Any]:
+    return json.loads(text, parse_float=Decimal)
+
+
 def load_inputs() -> tuple[dict[str, Any], list[dict[str, str]], dict[str, Any]]:
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
+    baseline = loads_json_lossless(BASELINE.read_text(encoding="utf-8"))
+    expected = loads_json_lossless(EXPECTED.read_text(encoding="utf-8"))
     with BINDINGS.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return baseline, rows, expected
 
 
 def is_numeric_zero(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0
+    if type(value) is int:
+        return value == 0
+    if isinstance(value, Decimal):
+        return value.is_finite() and value == Decimal(0)
+    return False
 
 
 def validate_authority_guards(
@@ -370,13 +379,14 @@ from __future__ import annotations
 import copy
 import json
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.qps_rtm_workload import load_inputs, validate_authority_guards
+from scripts.qps_rtm_workload import load_inputs, loads_json_lossless, validate_authority_guards
 
 
 def must_reject(name: str, baseline: dict, expected: dict) -> str:
@@ -435,6 +445,16 @@ def main() -> int:
     e = copy.deepcopy(expected)
     e["promotion_gate"] = "workload proof may promote counts"
     rejected.append(must_reject("promotion_gate_weakened", copy.deepcopy(baseline), e))
+
+    tiny = loads_json_lossless('{"credit": 1e-400}')["credit"]
+    assert tiny == Decimal("1e-400")
+    e = copy.deepcopy(expected)
+    e["formal_credit_delta"] = tiny
+    rejected.append(must_reject("formal_credit_delta_tiny_decimal_nonzero", copy.deepcopy(baseline), e))
+
+    e = copy.deepcopy(expected)
+    e["formal_credit_delta"] = 0.0
+    rejected.append(must_reject("formal_credit_delta_untrusted_float_zero", copy.deepcopy(baseline), e))
 
     receipt = {
         "schema": "gbogeb.qps_guard_negative_probe/v1",
@@ -539,7 +559,7 @@ jobs:
 
 ----FILE: triage/W290_QPS_STRICT_NUMERIC_ZERO_REPAIR.yaml
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:18:00+02:00"
+as_of: "2026-09-23T11:24:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -612,6 +632,15 @@ review:
       severity: P2
       finding: MATCH_HANDOVER_FILTER_TO_COMMITTED_W290_FILENAME
       disposition: REPAIRED_BY_35E3DBC592115AA2856B072329E19C52C395DD8A
+    - id: 4080883031
+      severity: P2
+      finding: PRESERVE_NONZERO_JSON_VALUES_BEFORE_CHECKING_ZERO
+      disposition: REPAIRED_BY_5843FBF8993EAA2D4E080EBC89FCDAB7D2F21B94_AND_10A481A94A53A9E585F31436683E224C18139244
+      repair:
+        - json floating tokens parsed with Decimal
+        - is_numeric_zero accepts only exact int zero or finite Decimal zero
+        - float values are rejected as untrusted for credit gates
+        - negative probe rejects Decimal 1e-400 and programmatic float 0.0
 sequence:
   3PR:
     refresh: PASS
@@ -718,6 +747,28 @@ subsequent successful negative probe.
 P2 4080848709, the workflow referenced a 2026-09-22 W290 handover path while
 the committed file is dated 2026-09-23, is repaired by
 35e3dbc592115aa2856b072329e19c52c395dd8a.
+
+## Decimal underflow follow-up
+
+Final review of serialized head 67c36db447c4405c8afd0712fbb11222fcac07f5
+raised P2 finding 4080883031: ordinary json.loads can underflow a tiny nonzero
+token such as 1e-400 to 0.0 before the zero-credit predicate sees it.
+
+Commit 5843fbf8993eaa2d4e080ebc89fcdab7d2f21b94 now parses JSON floating
+tokens with Decimal and accepts credit zero only when the value is exact int 0
+or a finite Decimal equal to zero. Programmatic float values are deliberately
+not trusted for the credit gate. Commit
+10a481a94a53a9e585f31436683e224c18139244 extends the negative probe to
+reject both Decimal("1e-400") and an untrusted float 0.0.
+
+Run 35842664433 / job 107121212081 on 10a481a94a53a9e585f31436683e224c18139244
+passed with 17 rejected unsafe mutations, 3+3 executed notebook cells, the same
+stable notebook output digest, unchanged workbook/CSV semantic digests, and
+artifact 10742360391 with ZIP SHA-256
+6218cc54386c2dc42a73cd0ff67d51d2aadb501beec9108671dc8462e7774d2e.
+
+Because this handover and recursive patch are updated after that run, one final
+exact-head recertification is still required.
 
 ## Exact next gate
 
