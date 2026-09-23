@@ -1,5 +1,5 @@
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:14:00+02:00"
+as_of: "2026-09-23T11:18:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -30,9 +30,48 @@ repair:
     - weaken exact-v0.5 promotion gate
     - require every mutation to be rejected
   ci:
-    - run negative guard probe before notebook
+    - run negative guard probe before notebook with PYTHONDONTWRITEBYTECODE=1
     - require strict numeric-zero and non-bool receipt values
     - preserve exact-head notebook repeat/digest and artifact receipt
+    - bind W290 handover filter to the committed 2026-09-23 path
+execution_history:
+  - sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+    run: 35841827953
+    result: FAIL
+    first_red: NEGATIVE_PROBE_IMPORT_PATH
+    repair: fc4bbd74127a013246a15fe819e1b04b70670222
+  - sha: fc4bbd74127a013246a15fe819e1b04b70670222
+    run: 35841901158
+    result: FAIL
+    first_red: NEGATIVE_PROBE_CREATED_PYCACHE_DIRTY_TREE
+    repair: 05ba30e279055e31483cc08c1b1f51e5136577ce
+  - sha: 05ba30e279055e31483cc08c1b1f51e5136577ce
+    run: 35842012607
+    job: 107119065381
+    result: PASS_CANDIDATE_PROOF
+    guard_negative_probe:
+      status: PASS_GUARDS_FAIL_CLOSED
+      rejected_mutation_count: 15
+    notebook:
+      executed_code_cells_each_run: 3
+      equal_output_digest: a1f2a771bf4dbaa69a133ef793fd15d8e4755c17fbd4cf5133066fe1479c6c2a
+    workload_receipt: PASS_REPRODUCED_EXPECTED_V06_CALCULATION_NOT_PROMOTION
+    excel_semantic_sha256: fb9be281accf5760fc0dd64e69d600356fc0ef0e1c1d467c73f173de9318edcc
+    normalized_csv_sha256: 78ac78cbf4ac875c7039d6015a715062754442a800be8a3d4627b851e421923a
+    artifact_id: 10740834822
+    artifact_zip_sha256: c63b80d0e203492133347be593613b11665b3716d64c6d6357134d2e6d961d84
+    note: HISTORICAL_CANDIDATE_PROOF_REQUIRES_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+review:
+  reviewed_sha: aafb70de3c1ee0c29fded66e73f8dc66bfa4c946
+  findings:
+    - id: 4080848699
+      severity: P1
+      finding: MAKE_WORKLOAD_MODULE_IMPORTABLE_WHEN_RUNNING_PROBE
+      disposition: REPAIRED_BY_FC4BBD74127A013246A15FE819E1B04B70670222
+    - id: 4080848709
+      severity: P2
+      finding: MATCH_HANDOVER_FILTER_TO_COMMITTED_W290_FILENAME
+      disposition: REPAIRED_BY_35E3DBC592115AA2856B072329E19C52C395DD8A
 sequence:
   3PR:
     refresh: PASS
@@ -44,8 +83,8 @@ sequence:
     perpetuate: PASS_EXACT_HEAD_CI_AND_DURABLE_HANDOVER
   3PC:
     prepare: PASS_REPAIR_BRANCH_MATERIALIZED
-    prove: PENDING_EXACT_HEAD_W290_PROOF
-    commit: PENDING_REVIEW_MERGE
+    prove: PENDING_FINAL_SERIALIZED_HEAD_RECERTIFICATION
+    commit: PENDING_FINAL_REVIEW_AND_MERGE
   3P3: NOT_AUTHORIZED_BEFORE_W290_PROVE_AND_COMMIT
 authority_transfer: false
 formal_credit_delta: 0
