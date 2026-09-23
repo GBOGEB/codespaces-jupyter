@@ -1,5 +1,5 @@
 schema: gbogeb.codespaces_jupyter.w290_qps_strict_numeric_zero_repair/v1
-as_of: "2026-09-23T11:18:00+02:00"
+as_of: "2026-09-23T11:24:00+02:00"
 mission: W290_QPS_REAL_WORKLOAD_STRICT_NUMERIC_ZERO_POSTMERGE_REPAIR
 repository: GBOGEB/codespaces-jupyter
 base_main: 3902e0edb18230e9236e48acfb36ce65b66732bc
@@ -72,6 +72,15 @@ review:
       severity: P2
       finding: MATCH_HANDOVER_FILTER_TO_COMMITTED_W290_FILENAME
       disposition: REPAIRED_BY_35E3DBC592115AA2856B072329E19C52C395DD8A
+    - id: 4080883031
+      severity: P2
+      finding: PRESERVE_NONZERO_JSON_VALUES_BEFORE_CHECKING_ZERO
+      disposition: REPAIRED_BY_5843FBF8993EAA2D4E080EBC89FCDAB7D2F21B94_AND_10A481A94A53A9E585F31436683E224C18139244
+      repair:
+        - json floating tokens parsed with Decimal
+        - is_numeric_zero accepts only exact int zero or finite Decimal zero
+        - float values are rejected as untrusted for credit gates
+        - negative probe rejects Decimal 1e-400 and programmatic float 0.0
 sequence:
   3PR:
     refresh: PASS
