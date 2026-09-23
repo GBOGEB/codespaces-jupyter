@@ -82,6 +82,16 @@ def main() -> int:
     e["formal_credit_delta"] = 0.0
     rejected.append(must_reject("formal_credit_delta_untrusted_float_zero", copy.deepcopy(baseline), e))
 
+    for token in ("0.0", "0e0", "-0.0"):
+        exact_zero = loads_json_lossless(f'{{"credit": {token}}}')["credit"]
+        assert isinstance(exact_zero, Decimal)
+        e = copy.deepcopy(expected)
+        e["formal_credit_delta"] = exact_zero
+        guard = validate_authority_guards(copy.deepcopy(baseline), e)
+        assert type(guard["formal_credit_delta"]) is int
+        assert guard["formal_credit_delta"] == 0
+        json.dumps(guard)
+
     receipt = {
         "schema": "gbogeb.qps_guard_negative_probe/v1",
         "status": "PASS_GUARDS_FAIL_CLOSED",
