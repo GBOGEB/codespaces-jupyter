@@ -43,7 +43,7 @@ jobs:
       - name: Install governed workload dependencies
         run: python -m pip install -r requirements-probe.txt
       - name: Prove authority guards fail closed
-        run: python scripts/qps_guard_negative_probe.py
+        run: PYTHONDONTWRITEBYTECODE=1 python scripts/qps_guard_negative_probe.py
       - name: Execute real QPS notebook twice
         run: python scripts/runtime_probe.py --notebook notebooks/qps_rtm_partial_relax_workload.ipynb --output-dir artifacts/qps_rtm_partial_relax_probe
       - name: Verify workload receipt
